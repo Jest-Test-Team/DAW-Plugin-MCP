@@ -1,0 +1,42 @@
+<evaluation>
+  <qa_pair>
+    <question>On a REAPER capability profile, is daw_list_tracks supported, degraded, or unavailable?</question>
+    <answer>supported</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>On a Logic Pro capability profile, is daw_set_parameter supported, degraded, or unavailable?</question>
+    <answer>unavailable</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>What MCP tool must an agent call before mutating a DAW session?</question>
+    <answer>daw_get_capabilities</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which risk level requires explicit confirmation before commit?</question>
+    <answer>structural</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>What localhost port does the default Ollama provider use?</question>
+    <answer>11434</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which crate owns lock-free audio and MIDI rings for the plugin shell?</question>
+    <answer>daw-plugin</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which language implements spectrum and loudness analysis?</question>
+    <answer>Julia</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>What host id should daw-mcp --host=live select?</question>
+    <answer>ableton</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Is wrapping claude -p inside the plugin chat UI permitted?</question>
+    <answer>no</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>What is the default page limit for daw_list_tracks?</question>
+    <answer>32</answer>
+  </qa_pair>
+</evaluation>
