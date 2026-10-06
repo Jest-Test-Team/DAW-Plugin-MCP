@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ControlSurface>
+  <Controls>
+    <Control name="add_audio_track" title="Add Audio Track" type="button" options="receive public">
+      <MidiMessage status="#B0" channel="0" address="#1"/>
+    </Control>
+    <Control name="mute" title="Mute" type="button" options="receive public">
+      <MidiMessage status="#B0" channel="0" address="#2"/>
+    </Control>
+  </Controls>
+</ControlSurface>
