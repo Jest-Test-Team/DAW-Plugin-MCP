@@ -1,0 +1,50 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/daw-contracts",
+    "crates/daw-mcp",
+    "crates/daw-plugin",
+    "crates/daw-transaction",
+    "crates/daw-probe",
+    "crates/daw-analysis",
+    "crates/daw-bridge-reaper",
+    "crates/daw-bridge-ableton",
+    "crates/daw-bridge-bitwig",
+    "crates/daw-bridge-logic",
+    "crates/daw-bridge-studioone",
+    "crates/daw-bridge-protools",
+    "crates/daw-bridge-cubase",
+    "crates/daw-bridge-flstudio",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.78"
+
+[workspace.dependencies]
+daw-contracts = { path = "crates/daw-contracts" }
+daw-transaction = { path = "crates/daw-transaction" }
+daw-probe = { path = "crates/daw-probe" }
+daw-analysis = { path = "crates/daw-analysis" }
+daw-bridge-reaper = { path = "crates/daw-bridge-reaper" }
+daw-bridge-ableton = { path = "crates/daw-bridge-ableton" }
+daw-bridge-bitwig = { path = "crates/daw-bridge-bitwig" }
+daw-bridge-logic = { path = "crates/daw-bridge-logic" }
+daw-bridge-studioone = { path = "crates/daw-bridge-studioone" }
+daw-bridge-protools = { path = "crates/daw-bridge-protools" }
+daw-bridge-cubase = { path = "crates/daw-bridge-cubase" }
+daw-bridge-flstudio = { path = "crates/daw-bridge-flstudio" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+async-trait = "0.1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-util", "io-std", "net", "process", "sync", "time", "fs"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+schemars = { version = "0.8", features = ["derive"] }
+anyhow = "1"
+bytes = "1"
+parking_lot = "0.12"

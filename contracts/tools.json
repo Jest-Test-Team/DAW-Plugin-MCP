@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://daw-mcp.local/schemas/tools.json",
+  "title": "DawRootTools",
+  "description": "Root MCP tools. Hosts must call daw_get_capabilities before writes.",
+  "tools": [
+    "daw_get_capabilities",
+    "daw_get_session_summary",
+    "daw_list_tracks",
+    "daw_get_track",
+    "daw_fetch_track_detail",
+    "daw_list_plugins",
+    "daw_get_midi_selection",
+    "daw_analyze_spectrum",
+    "daw_analyze_loudness",
+    "daw_health_check",
+    "daw_create_plan",
+    "daw_preview_plan",
+    "daw_commit_plan",
+    "daw_rollback",
+    "daw_write_midi",
+    "daw_set_parameter",
+    "daw_set_track_mute",
+    "daw_rename_track",
+    "daw_set_playhead",
+    "daw_locate_marker"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://daw-mcp.local/schemas/ipc.json",
+  "title": "PluginDaemonIpc",
+  "description": "Length-prefixed JSON-RPC 2.0 over Unix domain socket or Windows named pipe.",
+  "type": "object",
+  "required": ["jsonrpc", "method"],
+  "properties": {
+    "jsonrpc": { "const": "2.0" },
+    "id": { "type": ["string", "number", "null"] },
+    "method": {
+      "enum": [
+        "plugin/hello",
+        "plugin/audio_frame",
+        "plugin/midi",
+        "daemon/write_midi",
+        "daemon/capabilities"
+      ]
+    },
+    "params": { "type": "object" }
+  }
+}

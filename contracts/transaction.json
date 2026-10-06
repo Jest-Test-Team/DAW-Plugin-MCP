@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://daw-mcp.local/schemas/transaction.json",
+  "title": "TransactionPlan",
+  "type": "object",
+  "required": ["id", "host", "max_risk", "actions", "requires_confirmation"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "host": { "type": "string" },
+    "max_risk": { "enum": ["read", "reversible", "structural", "destructive"] },
+    "requires_confirmation": { "type": "boolean" },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "tool", "risk", "params"],
+        "properties": {
+          "id": { "type": "string" },
+          "tool": { "type": "string" },
+          "risk": { "enum": ["read", "reversible", "structural", "destructive"] },
+          "params": { "type": "object" }
+        }
+      }
+    }
+  }
+}

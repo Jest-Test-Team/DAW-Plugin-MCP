@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://daw-mcp.local/schemas/capabilities.json",
+  "title": "CapabilityProfile",
+  "type": "object",
+  "required": ["host", "layers", "capabilities"],
+  "properties": {
+    "host": {
+      "enum": [
+        "unknown",
+        "plugin",
+        "reaper",
+        "ableton",
+        "bitwig",
+        "logic",
+        "studio_one",
+        "pro_tools",
+        "cubase",
+        "fl_studio"
+      ]
+    },
+    "layers": {
+      "type": "array",
+      "items": { "enum": ["l0_plugin", "l1_probe", "l2_surface", "l3_native"] }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tool", "support", "layer", "risk"],
+        "properties": {
+          "tool": { "type": "string" },
+          "support": { "enum": ["supported", "degraded", "unavailable"] },
+          "layer": { "enum": ["l0_plugin", "l1_probe", "l2_surface", "l3_native"] },
+          "risk": { "enum": ["read", "reversible", "structural", "destructive"] },
+          "reason": { "type": "string" },
+          "next_step": { "type": "string" }
+        }
+      }
+    }
+  }
+}

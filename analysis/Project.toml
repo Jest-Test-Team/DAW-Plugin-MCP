@@ -1,0 +1,10 @@
+{
+  "name": "DawAnalysis",
+  "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "authors": ["DAW Plugin MCP"],
+  "version": "0.1.0",
+  "deps": {
+    "JSON3": "0e28f3ec-5cee-4f85-bc6f-c1aa138469c3",
+    "Statistics": "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+  }
+}
