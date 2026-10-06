@@ -1,0 +1,32 @@
+[package]
+name = "daw-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Local MCP server (stdio + 127.0.0.1). Subscription hosts connect here."
+
+[[bin]]
+name = "daw-mcp"
+path = "src/main.rs"
+
+[dependencies]
+daw-contracts.workspace = true
+daw-transaction.workspace = true
+daw-analysis.workspace = true
+daw-probe.workspace = true
+daw-bridge-reaper.workspace = true
+daw-bridge-ableton.workspace = true
+daw-bridge-bitwig.workspace = true
+daw-bridge-logic.workspace = true
+daw-bridge-studioone.workspace = true
+daw-bridge-protools.workspace = true
+daw-bridge-cubase.workspace = true
+daw-bridge-flstudio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+async-trait.workspace = true
