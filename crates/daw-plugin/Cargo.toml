@@ -1,0 +1,11 @@
+[package]
+name = "daw-plugin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Realtime-safe MIDI/audio plugin shell (nih-plug VST3/CLAP added by plugin agent)"
+
+[dependencies]
+daw-contracts.workspace = true
+
+[dev-dependencies]
