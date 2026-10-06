@@ -1,0 +1,12 @@
+[package]
+name = "daw-bridge-ableton"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+daw-contracts.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
