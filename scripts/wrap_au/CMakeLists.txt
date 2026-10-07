@@ -4,6 +4,17 @@ if (NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
 endif()
 project(daw_agent_au LANGUAGES C CXX OBJC OBJCXX)
 
+# clap-wrapper only sets CMAKE_CXX_STANDARD when it is the top-level project.
+# As a subdirectory it inherits ours; if unset, AppleClang compiles as C++98
+# and AudioUnitSDK / .mm sources fail with -Wc++11-extensions.
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard for clap-wrapper + AudioUnitSDK" FORCE)
+set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
+set(CMAKE_OBJCXX_STANDARD 17 CACHE STRING "ObjC++ standard for clap-wrapper .mm" FORCE)
+set(CMAKE_OBJCXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
+set(CLAP_WRAPPER_CXX_STANDARD 17 CACHE STRING "" FORCE)
+
+message(STATUS "daw_agent_au: CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} CMAKE_OBJCXX_STANDARD=${CMAKE_OBJCXX_STANDARD}")
+
 if (NOT APPLE)
   message(FATAL_ERROR "AUv2 wrapping requires macOS")
 endif()

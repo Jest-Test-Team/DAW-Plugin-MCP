@@ -21,6 +21,9 @@ jobs:
       - name: Bundle VST3 and CLAP
         run: cargo xtask bundle daw-plugin --release
       - name: Wrap AU and ad-hoc sign
+        env:
+          DEBUG_RUN_ID: post-fix
+          DEBUG_LOG_PATH: ${{ github.workspace }}/.cursor/debug-a99a1e.log
         run: bash scripts/wrap_au.sh
       - name: Ad-hoc sign VST3
         run: |
