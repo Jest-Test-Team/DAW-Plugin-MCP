@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 description = "Local MCP server (stdio + 127.0.0.1). Subscription hosts connect here."
 
+[lib]
+name = "daw_mcp"
+path = "src/lib.rs"
+
 [[bin]]
 name = "daw-mcp"
 path = "src/main.rs"

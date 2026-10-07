@@ -1,0 +1,59 @@
+name: Plugin artifacts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-vst3-au:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Ensure cmake
+        run: command -v cmake || brew install cmake
+      - name: Bundle VST3 and CLAP
+        run: cargo xtask bundle daw-plugin --release
+      - name: Wrap AU and ad-hoc sign
+        run: bash scripts/wrap_au.sh
+      - name: Ad-hoc sign VST3
+        run: |
+          VST="target/bundled/DAWAgent.vst3"
+          if [ -e "$VST" ]; then
+            codesign --force --sign - --timestamp=none "$VST"
+          else
+            echo "missing $VST" >&2
+            ls -la target/bundled || true
+            exit 1
+          fi
+      - name: List bundles
+        run: ls -la target/bundled
+      - uses: actions/upload-artifact@v4
+        with:
+          name: daw-plugin-macos-vst3
+          path: target/bundled/DAWAgent.vst3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: daw-plugin-macos-au
+          path: |
+            target/bundled/DAWAgent.component
+            target/bundled/DAWAgent.clap
+
+  windows-vst3:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Bundle VST3
+        run: cargo xtask bundle daw-plugin --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: daw-plugin-windows-vst3
+          path: target/bundled/DAWAgent.vst3

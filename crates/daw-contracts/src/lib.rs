@@ -32,7 +32,9 @@ pub enum ControlLayer {
     L3Native,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum RiskLevel {
     Read,
@@ -105,7 +107,11 @@ impl<T> Page<T> {
         let total_count = all.len() as u32;
         let start = req.offset.min(total_count) as usize;
         let end = (start + req.limit as usize).min(all.len());
-        let items: Vec<T> = all.into_iter().skip(start).take(end.saturating_sub(start)).collect();
+        let items: Vec<T> = all
+            .into_iter()
+            .skip(start)
+            .take(end.saturating_sub(start))
+            .collect();
         let next = req.offset + req.limit;
         let has_more = next < total_count;
         Self {
@@ -332,7 +338,13 @@ mod tests {
     #[test]
     fn page_clamps_and_paginates() {
         let items: Vec<u32> = (0..10).collect();
-        let page = Page::slice(items, PageRequest { limit: 3, offset: 3 });
+        let page = Page::slice(
+            items,
+            PageRequest {
+                limit: 3,
+                offset: 3,
+            },
+        );
         assert_eq!(page.items, vec![3, 4, 5]);
         assert!(page.has_more);
         assert_eq!(page.next_offset, Some(6));

@@ -34,7 +34,11 @@ pub async fn serve_stdio(host: Box<dyn DawHost>) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn dispatch(state: &mut ServerState, method: &str, params: Value) -> Result<Value, anyhow::Error> {
+async fn dispatch(
+    state: &mut ServerState,
+    method: &str,
+    params: Value,
+) -> Result<Value, anyhow::Error> {
     match method {
         "initialize" => Ok(json!({
             "protocolVersion": "2025-03-26",

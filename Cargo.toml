@@ -15,13 +15,14 @@ members = [
     "crates/daw-bridge-protools",
     "crates/daw-bridge-cubase",
     "crates/daw-bridge-flstudio",
+    "crates/xtask",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-rust-version = "1.78"
+rust-version = "1.80"
 
 [workspace.dependencies]
 daw-contracts = { path = "crates/daw-contracts" }

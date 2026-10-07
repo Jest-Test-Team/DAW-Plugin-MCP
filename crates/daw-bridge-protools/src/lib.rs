@@ -20,10 +20,19 @@ mod tests {
     async fn mock_lists_tracks() {
         let host = connect().unwrap();
         assert_eq!(host.host_id(), HostId::ProTools);
-        let page = host.list_tracks(PageRequest { limit: 10, offset: 0 }).await.unwrap();
+        let page = host
+            .list_tracks(PageRequest {
+                limit: 10,
+                offset: 0,
+            })
+            .await
+            .unwrap();
         assert!(!page.items.is_empty());
         let cap = host.capabilities();
-        assert!(cap.capabilities.iter().any(|c| c.tool == "daw_list_tracks" && c.support == Support::Supported));
+        assert!(cap
+            .capabilities
+            .iter()
+            .any(|c| c.tool == "daw_list_tracks" && c.support == Support::Supported));
     }
 
     #[test]

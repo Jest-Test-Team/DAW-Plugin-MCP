@@ -100,7 +100,10 @@ impl DawHost for MockHost {
     }
 
     async fn list_tracks(&self, page: PageRequest) -> Result<Page<Track>, DawError> {
-        Ok(Page::slice(self.inner.lock().expect("mock mutex").tracks.clone(), page))
+        Ok(Page::slice(
+            self.inner.lock().expect("mock mutex").tracks.clone(),
+            page,
+        ))
     }
 
     async fn get_track(&self, id: &str) -> Result<Track, DawError> {
@@ -139,7 +142,12 @@ impl DawHost for MockHost {
         Ok(())
     }
 
-    async fn set_parameter(&self, _plugin_id: &str, _name: &str, _value: f64) -> Result<(), DawError> {
+    async fn set_parameter(
+        &self,
+        _plugin_id: &str,
+        _name: &str,
+        _value: f64,
+    ) -> Result<(), DawError> {
         Ok(())
     }
 
@@ -173,18 +181,78 @@ impl DawHost for MockHost {
 pub fn native_profile(host: HostId) -> CapabilityProfile {
     use crate::{cap, ControlLayer, RiskLevel, Support};
     let tools = [
-        ("daw_get_capabilities", Support::Supported, ControlLayer::L3Native, RiskLevel::Read),
-        ("daw_get_session_summary", Support::Supported, ControlLayer::L3Native, RiskLevel::Read),
-        ("daw_list_tracks", Support::Supported, ControlLayer::L3Native, RiskLevel::Read),
-        ("daw_get_track", Support::Supported, ControlLayer::L3Native, RiskLevel::Read),
-        ("daw_list_plugins", Support::Supported, ControlLayer::L3Native, RiskLevel::Read),
-        ("daw_get_midi_selection", Support::Supported, ControlLayer::L3Native, RiskLevel::Read),
-        ("daw_health_check", Support::Supported, ControlLayer::L3Native, RiskLevel::Read),
-        ("daw_write_midi", Support::Supported, ControlLayer::L3Native, RiskLevel::Reversible),
-        ("daw_set_parameter", Support::Supported, ControlLayer::L3Native, RiskLevel::Reversible),
-        ("daw_set_track_mute", Support::Supported, ControlLayer::L3Native, RiskLevel::Reversible),
-        ("daw_rename_track", Support::Supported, ControlLayer::L3Native, RiskLevel::Reversible),
-        ("daw_set_playhead", Support::Supported, ControlLayer::L3Native, RiskLevel::Reversible),
+        (
+            "daw_get_capabilities",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Read,
+        ),
+        (
+            "daw_get_session_summary",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Read,
+        ),
+        (
+            "daw_list_tracks",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Read,
+        ),
+        (
+            "daw_get_track",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Read,
+        ),
+        (
+            "daw_list_plugins",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Read,
+        ),
+        (
+            "daw_get_midi_selection",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Read,
+        ),
+        (
+            "daw_health_check",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Read,
+        ),
+        (
+            "daw_write_midi",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Reversible,
+        ),
+        (
+            "daw_set_parameter",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Reversible,
+        ),
+        (
+            "daw_set_track_mute",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Reversible,
+        ),
+        (
+            "daw_rename_track",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Reversible,
+        ),
+        (
+            "daw_set_playhead",
+            Support::Supported,
+            ControlLayer::L3Native,
+            RiskLevel::Reversible,
+        ),
     ];
     CapabilityProfile {
         host,
@@ -200,13 +268,52 @@ pub fn degraded_surface_profile(host: HostId, unavailable_reason: &str) -> Capab
     use crate::{cap, ControlLayer, RiskLevel, Support};
     CapabilityProfile {
         host,
-        layers: vec![ControlLayer::L2Surface, ControlLayer::L0Plugin, ControlLayer::L1Probe],
+        layers: vec![
+            ControlLayer::L2Surface,
+            ControlLayer::L0Plugin,
+            ControlLayer::L1Probe,
+        ],
         capabilities: vec![
-            cap("daw_get_capabilities", Support::Supported, ControlLayer::L2Surface, RiskLevel::Read, None, None),
-            cap("daw_get_session_summary", Support::Degraded, ControlLayer::L2Surface, RiskLevel::Read, Some("limited host metadata"), None),
-            cap("daw_list_tracks", Support::Degraded, ControlLayer::L2Surface, RiskLevel::Read, Some("mixer bank only"), None),
-            cap("daw_set_track_mute", Support::Supported, ControlLayer::L2Surface, RiskLevel::Reversible, None, None),
-            cap("daw_set_playhead", Support::Supported, ControlLayer::L2Surface, RiskLevel::Reversible, None, None),
+            cap(
+                "daw_get_capabilities",
+                Support::Supported,
+                ControlLayer::L2Surface,
+                RiskLevel::Read,
+                None,
+                None,
+            ),
+            cap(
+                "daw_get_session_summary",
+                Support::Degraded,
+                ControlLayer::L2Surface,
+                RiskLevel::Read,
+                Some("limited host metadata"),
+                None,
+            ),
+            cap(
+                "daw_list_tracks",
+                Support::Degraded,
+                ControlLayer::L2Surface,
+                RiskLevel::Read,
+                Some("mixer bank only"),
+                None,
+            ),
+            cap(
+                "daw_set_track_mute",
+                Support::Supported,
+                ControlLayer::L2Surface,
+                RiskLevel::Reversible,
+                None,
+                None,
+            ),
+            cap(
+                "daw_set_playhead",
+                Support::Supported,
+                ControlLayer::L2Surface,
+                RiskLevel::Reversible,
+                None,
+                None,
+            ),
             cap(
                 "daw_set_parameter",
                 Support::Unavailable,

@@ -33,3 +33,7 @@ Forbidden: `~/.claude` session files, `claude -p` as a hidden client, Claude.ai 
 ## Host flags
 
 `reaper` `ableton` `bitwig` `logic` `studioone` `protools` `cubase` `flstudio`
+
+## Plugin artifacts
+
+Download VST3/AU from **Actions → Plugin artifacts**. Audio Units are macOS-only; Windows jobs publish VST3. The AU `.component` embeds `DAWAgent.clap`; keep the standalone CLAP from the same `daw-plugin-macos-au` artifact if you also want a CLAP host to load it.

@@ -1,6 +1,14 @@
 //! Realtime-safe ring buffers. The audio callback must never allocate, lock, or do I/O.
+//!
+//! vst3-sys's COM vtable macros trip this rustc lint; it is not our code.
+#![allow(semicolon_in_expressions_from_non_local_macros)]
 
 pub mod ipc;
+#[cfg(feature = "vst-clap")]
+pub mod plugin;
+
+#[cfg(feature = "vst-clap")]
+pub use plugin::DawAgentPlugin;
 
 use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
@@ -14,7 +22,10 @@ pub struct AudioRing {
 impl AudioRing {
     pub fn with_capacity(capacity: usize) -> Self {
         let cap = capacity.max(2).next_power_of_two();
-        let buf = (0..cap).map(|_| AtomicU32::new(0)).collect::<Vec<_>>().into_boxed_slice();
+        let buf = (0..cap)
+            .map(|_| AtomicU32::new(0))
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
         Self {
             buf,
             write: AtomicUsize::new(0),
@@ -70,7 +81,8 @@ pub struct MidiEvent {
 
 impl MidiEvent {
     fn pack(self) -> u64 {
-        let midi = u32::from(self.status) | (u32::from(self.data1) << 8) | (u32::from(self.data2) << 16);
+        let midi =
+            u32::from(self.status) | (u32::from(self.data1) << 8) | (u32::from(self.data2) << 16);
         (u64::from(self.sample_offset) << 32) | u64::from(midi)
     }
 
@@ -95,7 +107,10 @@ pub struct MidiRing {
 impl MidiRing {
     pub fn with_capacity(capacity: usize) -> Self {
         let cap = capacity.max(2).next_power_of_two();
-        let buf = (0..cap).map(|_| AtomicU64::new(0)).collect::<Vec<_>>().into_boxed_slice();
+        let buf = (0..cap)
+            .map(|_| AtomicU64::new(0))
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
         Self {
             buf,
             write: AtomicUsize::new(0),
@@ -157,4 +172,20 @@ mod tests {
         assert!(!ring.push(ev));
         assert_eq!(ring.pop().unwrap(), ev);
     }
+
+    fn assert_send_sync<T: Send + Sync>() {}
+
+    #[test]
+    fn rings_are_send_sync() {
+        assert_send_sync::<AudioRing>();
+        assert_send_sync::<MidiRing>();
+    }
 }
+
+#[cfg(feature = "vst-clap")]
+use nih_plug::prelude::*;
+
+#[cfg(feature = "vst-clap")]
+nih_export_clap!(DawAgentPlugin);
+#[cfg(feature = "vst-clap")]
+nih_export_vst3!(DawAgentPlugin);

@@ -1,0 +1,3 @@
+# Metadata for `cargo xtask bundle`.
+[daw-plugin]
+name = "DAWAgent"

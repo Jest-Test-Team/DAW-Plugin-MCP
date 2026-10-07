@@ -4,7 +4,10 @@ use daw_contracts::testing::{degraded_surface_profile, MockHost};
 use daw_contracts::{DawHost, HostId};
 
 pub fn mock() -> MockHost {
-    MockHost::new(degraded_surface_profile(HostId::Cubase, "Cubase MIDI Remote cannot insert plugins or enumerate the project"))
+    MockHost::new(degraded_surface_profile(
+        HostId::Cubase,
+        "Cubase MIDI Remote cannot insert plugins or enumerate the project",
+    ))
 }
 
 pub fn connect() -> anyhow::Result<Box<dyn DawHost>> {
@@ -21,7 +24,10 @@ mod tests {
         let host = connect().unwrap();
         let err = require_supported(&host.capabilities(), "daw_set_parameter").unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("unsupported") || msg.contains("Cubase MIDI Remote c"), "{msg}");
+        assert!(
+            msg.contains("unsupported") || msg.contains("Cubase MIDI Remote c"),
+            "{msg}"
+        );
         assert_eq!(host.host_id(), HostId::Cubase);
     }
 

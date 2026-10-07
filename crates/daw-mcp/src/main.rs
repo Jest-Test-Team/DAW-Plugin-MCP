@@ -1,13 +1,11 @@
 //! MCP stdio / loopback HTTP server. Do not bind LLM providers to subscription OAuth.
 
-mod host;
-mod http;
-mod mcp;
-mod providers;
-mod tools;
-
 use anyhow::Context;
-use host::select_host;
+use daw_mcp::host::select_host;
+use daw_mcp::http;
+use daw_mcp::mcp;
+use daw_mcp::providers;
+use daw_mcp::tools;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing_subscriber::EnvFilter;
@@ -25,10 +23,16 @@ async fn main() -> anyhow::Result<()> {
         .find_map(|a| a.strip_prefix("--host=").map(str::to_string))
         .or_else(|| std::env::var("DAW_HOST").ok())
         .unwrap_or_else(|| "reaper".into());
-    let http_port = args.iter().find_map(|a| a.strip_prefix("--http=").and_then(|p| p.parse().ok()));
+    let http_port = args
+        .iter()
+        .find_map(|a| a.strip_prefix("--http=").and_then(|p| p.parse().ok()));
     let provider = providers::LlmProvider::from_env();
     if let Some(p) = &provider {
-        tracing::info!(endpoint = p.endpoint(), oauth = p.uses_subscription_oauth(), "llm provider");
+        tracing::info!(
+            endpoint = p.endpoint(),
+            oauth = p.uses_subscription_oauth(),
+            "llm provider"
+        );
     }
 
     let host = select_host(&host_name).context("select host")?;

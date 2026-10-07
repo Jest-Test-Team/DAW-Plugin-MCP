@@ -50,17 +50,21 @@ impl LlmProvider {
             return Some(Self::OpenRouter {
                 api_key: key,
                 base_url: openrouter_base(),
-                model: std::env::var("OPENROUTER_MODEL").unwrap_or_else(|_| "anthropic/claude-sonnet-4".into()),
+                model: std::env::var("OPENROUTER_MODEL")
+                    .unwrap_or_else(|_| "anthropic/claude-sonnet-4".into()),
             });
         }
         if let Ok(key) = std::env::var("OPENAI_API_KEY") {
             return Some(Self::OpenAiCompat {
                 api_key: key,
-                base_url: std::env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".into()),
+                base_url: std::env::var("OPENAI_BASE_URL")
+                    .unwrap_or_else(|_| "https://api.openai.com/v1".into()),
                 model: std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4.1".into()),
             });
         }
-        if std::env::var("OLLAMA_HOST").is_ok() || std::path::Path::new("/usr/local/bin/ollama").exists() {
+        if std::env::var("OLLAMA_HOST").is_ok()
+            || std::path::Path::new("/usr/local/bin/ollama").exists()
+        {
             return Some(Self::Ollama {
                 base_url: std::env::var("OLLAMA_HOST").unwrap_or_else(|_| ollama_base()),
                 model: std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama3.2".into()),

@@ -19,6 +19,7 @@ class McpClient:
     def __init__(self):
         self._proc: subprocess.Popen | None = None
         self._lock = threading.Lock()
+        self._http_port: int | None = None
 
     def start_server(self, host: str = "reaper"):
         self.stop_server()
@@ -39,7 +40,56 @@ class McpClient:
             raise RuntimeError(init)
         return init["result"]["serverInfo"]["name"]
 
+    def start_http_server(self, host: str = "reaper", port: int = 8765):
+        self.stop_server()
+        root = _workspace()
+        bin_path = root / "target" / "debug" / "daw-mcp"
+        if not bin_path.exists():
+            subprocess.check_call(["cargo", "build", "-p", "daw-mcp"], cwd=root)
+        self._http_port = int(port)
+        self._proc = subprocess.Popen(
+            [str(bin_path), f"--host={host}", f"--http={port}"],
+            cwd=root,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            bufsize=0,
+        )
+        import time
+        import urllib.error
+        import urllib.request
+
+        url = f"http://127.0.0.1:{port}/health"
+        last_err = None
+        for _ in range(50):
+            try:
+                with urllib.request.urlopen(url, timeout=1) as resp:
+                    body = resp.read().decode("utf-8")
+                    if resp.status == 200 and "127.0.0.1" in body:
+                        return body
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+                last_err = e
+                time.sleep(0.1)
+        err = last_err
+        if self._proc and self._proc.poll() is not None:
+            stderr = self._proc.stderr.read() if self._proc.stderr else b""
+            err = f"{last_err}; process exited {self._proc.returncode}: {stderr!r}"
+        raise RuntimeError(f"HTTP server did not start: {err}")
+
+    def http_get(self, path: str = "/health"):
+        import urllib.request
+
+        port = self._http_port or 8765
+        url = f"http://127.0.0.1:{port}{path}"
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            return resp.status, resp.read().decode("utf-8")
+
+    def response_leaks_home(self, text: str) -> bool:
+        home = os.path.expanduser("~")
+        return bool(home) and home in text
+
     def stop_server(self):
+        self._http_port = None
         if self._proc:
             self._proc.kill()
             try:

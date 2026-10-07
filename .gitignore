@@ -23,3 +23,6 @@ build/
 *.vst3
 *.component
 *.clap
+fuzz/target/
+fuzz/artifacts/
+fuzz/corpus/

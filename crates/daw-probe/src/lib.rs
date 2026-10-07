@@ -39,7 +39,12 @@ impl ProbeHub {
     }
 
     pub fn snapshot(&self) -> Vec<ProbeFrame> {
-        self.frames.lock().expect("probe mutex").values().cloned().collect()
+        self.frames
+            .lock()
+            .expect("probe mutex")
+            .values()
+            .cloned()
+            .collect()
     }
 
     pub fn masking_matrix(&self) -> Vec<MaskingHit> {

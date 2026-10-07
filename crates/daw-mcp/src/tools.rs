@@ -61,7 +61,17 @@ pub async fn call(state: &mut ServerState, name: &str, args: Value) -> anyhow::R
     if name != "daw_get_capabilities" {
         if let Err(e) = require_supported(&state.host.capabilities(), name) {
             // analysis tools are served locally even if host profile omitted them
-            if !matches!(name, "daw_analyze_spectrum" | "daw_analyze_loudness" | "daw_create_plan" | "daw_preview_plan" | "daw_commit_plan" | "daw_rollback" | "daw_fetch_track_detail" | "daw_locate_marker") {
+            if !matches!(
+                name,
+                "daw_analyze_spectrum"
+                    | "daw_analyze_loudness"
+                    | "daw_create_plan"
+                    | "daw_preview_plan"
+                    | "daw_commit_plan"
+                    | "daw_rollback"
+                    | "daw_fetch_track_detail"
+                    | "daw_locate_marker"
+            ) {
                 return Ok(tool_error(&e.to_string()));
             }
         }
@@ -74,13 +84,19 @@ pub async fn call(state: &mut ServerState, name: &str, args: Value) -> anyhow::R
             ok(serde_json::to_value(state.host.list_tracks(page).await?)?)
         }
         "daw_get_track" | "daw_fetch_track_detail" => {
-            let id = args.get("track_id").and_then(|v| v.as_str()).unwrap_or("trk-1");
+            let id = args
+                .get("track_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("trk-1");
             let track = state.host.get_track(id).await?;
             let plugins = state.host.list_plugins(id).await.unwrap_or_default();
             ok(json!({"track": track, "plugins": plugins}))
         }
         "daw_list_plugins" => {
-            let id = args.get("track_id").and_then(|v| v.as_str()).unwrap_or("trk-1");
+            let id = args
+                .get("track_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("trk-1");
             ok(serde_json::to_value(state.host.list_plugins(id).await?)?)
         }
         "daw_get_midi_selection" => ok(serde_json::to_value(state.host.midi_selection().await?)?),
@@ -90,7 +106,10 @@ pub async fn call(state: &mut ServerState, name: &str, args: Value) -> anyhow::R
                 issues.push(daw_contracts::HealthIssue {
                     code: "masking".into(),
                     severity: daw_contracts::HealthSeverity::Warn,
-                    message: format!("spectral overlap {:.0} Hz between {} and {}", hit.band_hz, hit.a, hit.b),
+                    message: format!(
+                        "spectral overlap {:.0} Hz between {} and {}",
+                        hit.band_hz, hit.a, hit.b
+                    ),
                     confidence: 0.7,
                     layer: daw_contracts::ControlLayer::L1Probe,
                     track_id: None,
@@ -101,9 +120,16 @@ pub async fn call(state: &mut ServerState, name: &str, args: Value) -> anyhow::R
         "daw_analyze_spectrum" => analyze(state, "spectrum", &args).await,
         "daw_analyze_loudness" => analyze(state, "loudness", &args).await,
         "daw_create_plan" => {
-            let actions: Vec<PlanAction> = serde_json::from_value(args.get("actions").cloned().unwrap_or(json!([])))?;
-            let confirmed = args.get("confirmed").and_then(|v| v.as_bool()).unwrap_or(false);
-            match state.tx.create_plan(&state.host.capabilities(), actions, confirmed) {
+            let actions: Vec<PlanAction> =
+                serde_json::from_value(args.get("actions").cloned().unwrap_or(json!([])))?;
+            let confirmed = args
+                .get("confirmed")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            match state
+                .tx
+                .create_plan(&state.host.capabilities(), actions, confirmed)
+            {
                 Ok(plan) => {
                     state.last_plan = Some(plan.clone());
                     ok(serde_json::to_value(plan)?)
@@ -118,7 +144,10 @@ pub async fn call(state: &mut ServerState, name: &str, args: Value) -> anyhow::R
         }
         "daw_commit_plan" => {
             let plan = plan_from(state, &args)?;
-            let confirmed = args.get("confirmed").and_then(|v| v.as_bool()).unwrap_or(false);
+            let confirmed = args
+                .get("confirmed")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             match state.tx.commit(state.host.as_ref(), &plan, confirmed).await {
                 Ok(cp) => ok(serde_json::to_value(cp)?),
                 Err(e) => Ok(tool_error(&e.to_string())),
@@ -134,14 +163,18 @@ pub async fn call(state: &mut ServerState, name: &str, args: Value) -> anyhow::R
             ok(json!({"rolled_back": id}))
         }
         "daw_write_midi" => {
-            let notes: Vec<MidiNote> = serde_json::from_value(args.get("notes").cloned().unwrap_or(json!([])))?;
+            let notes: Vec<MidiNote> =
+                serde_json::from_value(args.get("notes").cloned().unwrap_or(json!([])))?;
             state.host.write_midi(notes).await?;
             ok(json!({"ok": true}))
         }
         "daw_set_parameter" => {
             let plugin_id = arg_str(&args, "plugin_id")?;
             let pname = arg_str(&args, "name")?;
-            let value = args.get("value").and_then(|v| v.as_f64()).ok_or_else(|| anyhow::anyhow!("value"))?;
+            let value = args
+                .get("value")
+                .and_then(|v| v.as_f64())
+                .ok_or_else(|| anyhow::anyhow!("value"))?;
             state.host.set_parameter(plugin_id, pname, value).await?;
             ok(json!({"ok": true}))
         }
@@ -167,7 +200,9 @@ pub async fn call(state: &mut ServerState, name: &str, args: Value) -> anyhow::R
 }
 
 fn arg_str<'a>(args: &'a Value, key: &str) -> anyhow::Result<&'a str> {
-    args.get(key).and_then(|v| v.as_str()).ok_or_else(|| anyhow::anyhow!("{key} required"))
+    args.get(key)
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("{key} required"))
 }
 
 fn page_req(args: &Value) -> PageRequest {
@@ -192,7 +227,10 @@ async fn analyze(state: &ServerState, op: &str, args: &Value) -> anyhow::Result<
         .get("samples")
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_else(|| vec![0.0; 64]);
-    let sr = args.get("sample_rate").and_then(|v| v.as_f64()).unwrap_or(48000.0) as f32;
+    let sr = args
+        .get("sample_rate")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(48000.0) as f32;
     let root = workspace_root();
     let julia = JuliaAnalyzer::from_workspace_root(root);
     let result = match op {
@@ -241,7 +279,10 @@ fn workspace_root() -> PathBuf {
 }
 
 fn ok(structured: Value) -> anyhow::Result<Value> {
-    let md = format!("```json\n{}\n```", serde_json::to_string_pretty(&structured)?);
+    let md = format!(
+        "```json\n{}\n```",
+        serde_json::to_string_pretty(&structured)?
+    );
     Ok(json!({
         "content": [{"type":"text","text": md}],
         "structuredContent": structured,

@@ -68,7 +68,13 @@ impl TransactionEngine {
             String::new(),
         ];
         for (i, a) in plan.actions.iter().enumerate() {
-            lines.push(format!("{}. `{}` ({:?}) {}", i + 1, a.tool, a.risk, a.params));
+            lines.push(format!(
+                "{}. `{}` ({:?}) {}",
+                i + 1,
+                a.tool,
+                a.risk,
+                a.params
+            ));
         }
         Preview {
             plan: plan.clone(),
@@ -92,8 +98,16 @@ impl TransactionEngine {
                 offset: 0,
             })
             .await?;
-        let muted = tracks.items.iter().map(|t| (t.id.clone(), t.mute)).collect();
-        let names = tracks.items.iter().map(|t| (t.id.clone(), t.name.clone())).collect();
+        let muted = tracks
+            .items
+            .iter()
+            .map(|t| (t.id.clone(), t.mute))
+            .collect();
+        let names = tracks
+            .items
+            .iter()
+            .map(|t| (t.id.clone(), t.name.clone()))
+            .collect();
         let checkpoint = Checkpoint {
             plan_id: plan.id,
             midi,

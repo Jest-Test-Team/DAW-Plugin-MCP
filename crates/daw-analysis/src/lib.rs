@@ -34,9 +34,7 @@ impl JuliaAnalyzer {
         samples: &[f32],
         sample_rate: f32,
     ) -> Result<SpectrumResult, AnalysisError> {
-        let raw = self
-            .invoke("spectrum", samples, sample_rate)
-            .await?;
+        let raw = self.invoke("spectrum", samples, sample_rate).await?;
         Ok(serde_json::from_value(raw)?)
     }
 
@@ -45,9 +43,7 @@ impl JuliaAnalyzer {
         samples: &[f32],
         sample_rate: f32,
     ) -> Result<LoudnessResult, AnalysisError> {
-        let raw = self
-            .invoke("loudness", samples, sample_rate)
-            .await?;
+        let raw = self.invoke("loudness", samples, sample_rate).await?;
         Ok(serde_json::from_value(raw)?)
     }
 
@@ -79,10 +75,12 @@ impl JuliaAnalyzer {
         }
         let out = child.wait_with_output().await?;
         if !out.status.success() {
-            return Err(AnalysisError::Julia(String::from_utf8_lossy(&out.stderr).into()));
+            return Err(AnalysisError::Julia(
+                String::from_utf8_lossy(&out.stderr).into(),
+            ));
         }
         let stdout = String::from_utf8_lossy(&out.stdout);
-        let line = stdout.lines().last().unwrap_or("{}",);
+        let line = stdout.lines().last().unwrap_or("{}");
         Ok(serde_json::from_str(line)?)
     }
 }

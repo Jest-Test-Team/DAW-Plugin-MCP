@@ -3,9 +3,15 @@ name = "daw-plugin"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Realtime-safe MIDI/audio plugin shell (nih-plug VST3/CLAP added by plugin agent)"
+description = "Realtime-safe MIDI/audio plugin shell (VST3/CLAP via nih-plug)"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = ["vst-clap"]
+vst-clap = ["dep:nih_plug"]
 
 [dependencies]
 daw-contracts.workspace = true
-
-[dev-dependencies]
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["vst3", "assert_process_allocs"], optional = true }

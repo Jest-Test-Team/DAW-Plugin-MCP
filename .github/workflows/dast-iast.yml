@@ -1,0 +1,107 @@
+name: DAST and IAST
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  dast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build MCP daemon
+        run: cargo build -p daw-mcp
+      - name: Start loopback MCP HTTP
+        run: |
+          ./target/debug/daw-mcp --host=reaper --http=8765 &
+          echo $! > /tmp/daw-mcp.pid
+          for i in $(seq 1 50); do
+            curl -sf http://127.0.0.1:8765/health && break
+            sleep 0.1
+          done
+          curl -sf http://127.0.0.1:8765/health | tee /tmp/health.json
+          grep -q '127.0.0.1' /tmp/health.json
+          ! grep -q '0.0.0.0' /tmp/health.json
+      - name: ZAP baseline
+        id: zap
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: "http://127.0.0.1:8765"
+          fail_action: false
+          allow_issue_writing: false
+          artifact_name: zap-mcp-baseline
+      - name: Fail only on High risk
+        if: ${{ always() && steps.zap.outcome == 'success' }}
+        run: |
+          python3 - <<'PY'
+          import glob, json, sys
+          paths = glob.glob("zap-report*.json") + glob.glob("report_json.json")
+          if not paths:
+              print("missing ZAP JSON report", file=sys.stderr)
+              sys.exit(1)
+          high = []
+          for path in paths:
+              try:
+                  data = json.load(open(path))
+              except Exception as e:
+                  print(f"skip {path}: {e}")
+                  continue
+              sites = data.get("site") or []
+              if isinstance(data, dict) and "site" not in data:
+                  sites = [data]
+              for site in sites:
+                  for alert in site.get("alerts", []):
+                      risk = str(alert.get("riskcode", alert.get("risk", ""))).lower()
+                      name = alert.get("name") or alert.get("alert")
+                      if risk in {"3", "high"}:
+                          high.append(name)
+          if high:
+              print("High risk alerts:", high)
+              sys.exit(1)
+          print("No High risk ZAP alerts")
+          PY
+      - name: Stop daemon
+        if: always()
+        run: kill "$(cat /tmp/daw-mcp.pid)" || true
+
+  iast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: llvm-tools-preview
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Install clang for libfuzzer
+        run: sudo apt-get update && sudo apt-get install -y clang
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Fuzz IPC frames
+        env:
+          RUSTUP_TOOLCHAIN: nightly
+        run: cargo fuzz run decode_frame --fuzz-dir fuzz -- -max_total_time=20
+      - name: Fuzz MCP JSON-RPC
+        env:
+          RUSTUP_TOOLCHAIN: nightly
+        run: cargo fuzz run mcp_json --fuzz-dir fuzz -- -max_total_time=20
+      - name: Build daemon for Robot
+        run: cargo build -p daw-mcp
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Robot security suite
+        run: |
+          python3 -m venv tests/robot/.venv
+          tests/robot/.venv/bin/pip install -r tests/robot/requirements.txt
+          tests/robot/.venv/bin/robot --outputdir tests/robot/out tests/robot/security.robot tests/robot/capabilities.robot tests/robot/transaction.robot tests/robot/ableton.robot
