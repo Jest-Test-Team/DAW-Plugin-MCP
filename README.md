@@ -35,16 +35,26 @@ Tagged releases (`git tag v0.1.0 && git push origin v0.1.0`) run [`.github/workf
 
 The Vercel production URL is a **static landing page** (`public/`). It does not run `daw-mcp` or Python.
 
+## Install AU in Logic Pro
 
-## install au in logix pro 
+Logic Pro loads **Audio Units only**. Copy `DAWAgent.component` from the `daw-plugin-macos-au` artifact; do not install `DAWAgent.clap` into Logic (CLAP is for other hosts). Keep the command on **one line** — a trailing `\` is line continuation and will make `cp` fail with `No such file or directory`.
+
 ```bash
 mkdir -p ~/Library/Audio/Plug-Ins/Components
-cp -R "/your_download_folder/daw-plugin-macos-au/DAWAgent.component" \
-  ~/Library/Audio/Plug-Ins/Components/
+cp -R ~/Downloads/daw-plugin-macos-au/DAWAgent.component ~/Library/Audio/Plug-Ins/Components/
 xattr -cr ~/Library/Audio/Plug-Ins/Components/DAWAgent.component
 ```
 
-### oprional privacy setting
+Quit Logic completely, reopen it, then **Plug-in Manager → Reset & Rescan Selection** (or Full Audio Unit Reset). Search for **DAW Agent** (manufacturer **DAW Plugin MCP**, type **Effect**). Insert it on an audio track **Audio FX** slot — it is `aufx`, not an instrument.
+
+### Optional privacy / Gatekeeper
+
+CI artifacts are **ad-hoc signed** (no Developer ID). After a GitHub download, macOS may quarantine the bundle.
+
+1. `xattr -cr` (above) removes the quarantine flag.
+2. If System Settings → **Privacy & Security** shows that DAWAgent was blocked, choose **Open Anyway**.
+3. Confirm the signature if validation still fails:
+
 ```bash
 codesign --verify --verbose=4 ~/Library/Audio/Plug-Ins/Components/DAWAgent.component
 ```
