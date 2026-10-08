@@ -45,9 +45,16 @@ cp -R ~/Downloads/daw-plugin-macos-au/DAWAgent.component ~/Library/Audio/Plug-In
 xattr -cr ~/Library/Audio/Plug-Ins/Components/DAWAgent.component
 ```
 
-Quit Logic completely, reopen it, then **Plug-in Manager → Reset & Rescan Selection** (or Full Audio Unit Reset). Plug-in Manager can show **DAW Agent** as compatible while the mixer **search box still finds nothing** — Logic’s insert search usually does not index third-party Audio Units.
+Quit Logic completely, reopen it, then **Plug-in Manager → Reset & Rescan Selection** (or Full Audio Unit Reset).
 
-Insert it from the Audio FX slot: scroll to the bottom → **音訊單元 / Audio Units → DAW Plugin MCP → DAW Agent**. It is `aufx` (effect), not an instrument. Do not look under **音訊單元：Apple**.
+**Do not open 音訊單元：Apple.** That submenu is only Apple’s built-in AUs (AUDelay, AUBandpass, …). DAW Agent is not there, and mixer search will not find it until you file it in a Logic category:
+
+1. Logic → Plug-in Manager
+2. Left sidebar **類別 → Utility** (or click **+** on 類別 if you want a custom collection)
+3. From **製造商 → DAW Plugin MCP**, drag **DAW Agent** onto **Utility**
+4. Click **Done**
+
+Then on an audio track Audio FX slot open **Utility → DAW Agent**. Search `daw` works after this assignment. It is an effect (`aufx`), not an instrument.
 
 ### Plugin GUI (AU / VST3 / CLAP)
 

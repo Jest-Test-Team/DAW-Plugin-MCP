@@ -79,13 +79,13 @@ chmod_macos_executables() {
 chmod_macos_executables "$OUT_DIR/$NAME.component"
 chmod_macos_executables "$OUT_DIR/$NAME.clap"
 
-# Ad-hoc sign so hosts will load CI artifacts. Developer ID is optional and not used here.
-codesign --force --sign - --timestamp=none "$OUT_DIR/$NAME.component" || true
+# Ad-hoc sign after chmod; --deep covers the embedded CLAP.
+codesign --force --sign - --timestamp=none --deep "$OUT_DIR/$NAME.component" || true
 if [[ -d "$OUT_DIR/$NAME.vst3" ]]; then
-  codesign --force --sign - --timestamp=none "$OUT_DIR/$NAME.vst3" || true
+  codesign --force --sign - --timestamp=none --deep "$OUT_DIR/$NAME.vst3" || true
 fi
 if [[ -d "$OUT_DIR/$NAME.clap" || -f "$OUT_DIR/$NAME.clap" ]]; then
-  codesign --force --sign - --timestamp=none "$OUT_DIR/$NAME.clap" || true
+  codesign --force --sign - --timestamp=none --deep "$OUT_DIR/$NAME.clap" || true
 fi
 
 echo "AU wrapper at $OUT_DIR/$NAME.component"

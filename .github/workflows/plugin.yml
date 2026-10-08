@@ -43,8 +43,13 @@ jobs:
           mkdir -p "$COMP"
           rm -rf "$COMP/DAWAgent.component"
           cp -R target/bundled/DAWAgent.component "$COMP/"
+          find "$COMP/DAWAgent.component" -type d -name MacOS | while read -r dir; do
+            find "$dir" -maxdepth 1 -type f -exec chmod +x {} +
+          done
           xattr -cr "$COMP/DAWAgent.component" || true
-          auval -v aufx DwMc Agnt
+          codesign --force --sign - --timestamp=none --deep "$COMP/DAWAgent.component" || true
+          # auval -v TYPE SUBTYPE MANUFACTURER
+          auval -v aufx Agnt DwMc
       - name: List bundles
         run: ls -la target/bundled
       - uses: actions/upload-artifact@v4

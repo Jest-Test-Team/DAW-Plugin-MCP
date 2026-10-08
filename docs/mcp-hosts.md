@@ -40,7 +40,7 @@ Keys entered in the UI are stored at `~/Library/Application Support/DAW-Plugin-M
 
 Forbidden: `~/.claude` session files, `claude -p` as a hidden client, Claude.ai login in the plugin.
 
-Logic Pro: the mixer search box does not list this AU. Use **Audio Units → DAW Plugin MCP → DAW Agent** on an Audio FX slot. See [README.md](../README.md).
+Logic Pro: **音訊單元：Apple** is only Apple’s built-in AUs. File **DAW Agent** under Plug-in Manager **類別 → Utility**, then insert from **Utility** (search `daw` works after that). See [README.md](../README.md).
 
 ## Host flags
 
