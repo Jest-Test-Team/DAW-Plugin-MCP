@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "echo skip-python-install",
-  "buildCommand": "sh -c 'if [ -f web/vercel-build.sh ]; then sh web/vercel-build.sh; elif [ -f ../web/vercel-build.sh ]; then sh ../web/vercel-build.sh; else ls -la; exit 1; fi'",
+  "buildCommand": "sh -c 'd=\"$PWD\"; while [ \"$d\" != \"/\" ]; do if [ -f \"$d/web/vercel-build.sh\" ]; then exec sh \"$d/web/vercel-build.sh\"; fi; d=$(dirname \"$d\"); done; echo \"web/vercel-build.sh not found from $PWD\" >&2; exit 1'",
   "outputDirectory": "public"
 }
