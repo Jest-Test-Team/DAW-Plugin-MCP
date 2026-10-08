@@ -72,3 +72,6 @@ CI artifacts are **ad-hoc signed** (no Developer ID). After a GitHub download, m
 ```bash
 codesign --verify --verbose=4 ~/Library/Audio/Plug-Ins/Components/DAWAgent.component
 ```
+
+
+<img width="788" height="700" alt="截圖 2026-10-08 21 57 50" src="https://github.com/user-attachments/assets/8a27c90f-9b9b-4b29-8ec3-bc5090a7cb9a" />
