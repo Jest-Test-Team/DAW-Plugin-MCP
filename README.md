@@ -34,3 +34,17 @@ AU is macOS-only; the Windows job does not build Audio Units. Ad-hoc codesign on
 Tagged releases (`git tag v0.1.0 && git push origin v0.1.0`) run [`.github/workflows/release.yml`](.github/workflows/release.yml), zip the macOS/Windows bundles, and attach them to a GitHub Release.
 
 The Vercel production URL is a **static landing page** (`public/`). It does not run `daw-mcp` or Python.
+
+
+## install au in logix pro 
+```bash
+mkdir -p ~/Library/Audio/Plug-Ins/Components
+cp -R "/your_download_folder/daw-plugin-macos-au/DAWAgent.component" \
+  ~/Library/Audio/Plug-Ins/Components/
+xattr -cr ~/Library/Audio/Plug-Ins/Components/DAWAgent.component
+```
+
+### oprional privacy setting
+```bash
+codesign --verify --verbose=4 ~/Library/Audio/Plug-Ins/Components/DAWAgent.component
+```
