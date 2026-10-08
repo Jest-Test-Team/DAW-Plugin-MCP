@@ -13,3 +13,7 @@ contracts
 Cargo.toml
 Cargo.lock
 scripts
+!web
+!web/**
+!public
+!public/**
