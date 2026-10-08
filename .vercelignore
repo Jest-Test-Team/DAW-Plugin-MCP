@@ -12,7 +12,4 @@ contracts
 *.rs
 Cargo.toml
 Cargo.lock
-!public
-!public/**
-!scripts
-!scripts/**
+scripts
