@@ -36,6 +36,15 @@ jobs:
             ls -la target/bundled || true
             exit 1
           fi
+      - name: Validate AU with auval
+        run: |
+          set -euo pipefail
+          COMP="$HOME/Library/Audio/Plug-Ins/Components"
+          mkdir -p "$COMP"
+          rm -rf "$COMP/DAWAgent.component"
+          cp -R target/bundled/DAWAgent.component "$COMP/"
+          xattr -cr "$COMP/DAWAgent.component" || true
+          auval -v aufx DwMc Agnt
       - name: List bundles
         run: ls -la target/bundled
       - uses: actions/upload-artifact@v4

@@ -3,6 +3,9 @@
 //! vst3-sys's COM vtable macros trip this rustc lint; it is not our code.
 #![allow(semicolon_in_expressions_from_non_local_macros)]
 
+pub mod chat;
+#[cfg(feature = "vst-clap")]
+pub mod editor;
 pub mod ipc;
 #[cfg(feature = "vst-clap")]
 pub mod plugin;

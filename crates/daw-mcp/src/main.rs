@@ -4,6 +4,7 @@ use anyhow::Context;
 use daw_mcp::host::select_host;
 use daw_mcp::http;
 use daw_mcp::mcp;
+use daw_mcp::plugin_ipc;
 use daw_mcp::providers;
 use daw_mcp::tools;
 use std::sync::Arc;
@@ -36,10 +37,16 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let host = select_host(&host_name).context("select host")?;
+    let state = Arc::new(Mutex::new(tools::ServerState::new(host)));
+    let ipc_state = Arc::clone(&state);
+    tokio::spawn(async move {
+        if let Err(e) = plugin_ipc::serve(ipc_state).await {
+            tracing::error!(error = %e, "plugin ipc");
+        }
+    });
     if let Some(port) = http_port {
-        let state = Arc::new(Mutex::new(tools::ServerState::new(host)));
         http::serve_loopback(state, port).await
     } else {
-        mcp::serve_stdio(host).await
+        mcp::serve_stdio(state).await
     }
 }

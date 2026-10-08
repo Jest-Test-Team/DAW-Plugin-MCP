@@ -21,14 +21,26 @@ Loopback HTTP (127.0.0.1 only):
 
 ## Plugin chat / API mode
 
-Set **your** keys only:
+The VST3 / AU / CLAP editor talks to `daw-mcp` over a length-prefixed Unix socket (`$TMPDIR/daw-mcp.sock`) or Windows named pipe `\\.\pipe\daw-mcp`. Start the daemon first:
+
+```bash
+cargo run -p daw-mcp -- --host=logic
+```
+
+`--http=8765` still serves loopback HTTP; the plugin socket is always enabled.
+
+Set **your** keys in the plugin Settings panel (or env):
 
 - `ANTHROPIC_API_KEY`
 - `OPENAI_API_KEY` / `OPENAI_BASE_URL`
 - `OPENROUTER_API_KEY`
 - or Ollama at `http://127.0.0.1:11434`
 
+Keys entered in the UI are stored at `~/Library/Application Support/DAW-Plugin-MCP/plugin-ui.json` (mode `0600`). They are never logged.
+
 Forbidden: `~/.claude` session files, `claude -p` as a hidden client, Claude.ai login in the plugin.
+
+Logic Pro: the mixer search box does not list this AU. Use **Audio Units → DAW Plugin MCP → DAW Agent** on an Audio FX slot. See [README.md](../README.md).
 
 ## Host flags
 

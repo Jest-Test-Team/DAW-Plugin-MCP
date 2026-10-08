@@ -3,6 +3,7 @@
 pub mod host;
 pub mod http;
 pub mod mcp;
+pub mod plugin_ipc;
 pub mod providers;
 pub mod tools;
 

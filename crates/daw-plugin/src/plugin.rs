@@ -3,6 +3,7 @@
 use crate::{AudioRing, MidiEvent, MidiRing};
 use daw_contracts::HostId;
 use nih_plug::prelude::*;
+use nih_plug_egui::EguiState;
 use std::sync::Arc;
 
 /// Identifies this insert as the L0 plugin sensor, not a DAW native bridge.
@@ -16,7 +17,10 @@ pub struct DawAgentPlugin {
 }
 
 #[derive(Params)]
-struct DawAgentParams {
+pub struct DawAgentParams {
+    #[persist = "editor-state"]
+    editor_state: Arc<EguiState>,
+
     #[id = "out"]
     pub output_gain: FloatParam,
 }
@@ -34,6 +38,7 @@ impl Default for DawAgentPlugin {
 impl Default for DawAgentParams {
     fn default() -> Self {
         Self {
+            editor_state: EguiState::from_size(720, 520),
             output_gain: FloatParam::new("Output", 1.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
         }
     }
@@ -68,6 +73,10 @@ impl Plugin for DawAgentPlugin {
 
     fn params(&self) -> Arc<dyn Params> {
         self.params.clone()
+    }
+
+    fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
+        crate::editor::create_editor(self.params.editor_state.clone(), self.params.clone())
     }
 
     fn process(

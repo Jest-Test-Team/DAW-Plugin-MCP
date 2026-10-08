@@ -1,7 +1,8 @@
 //! Loopback Streamable-HTTP style JSON-RPC. Bind 127.0.0.1 only.
 
+use crate::mcp;
 use crate::parse_jsonrpc;
-use crate::tools::{self, ServerState};
+use crate::tools::ServerState;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -140,25 +141,14 @@ async fn handle_body(state: &Arc<Mutex<ServerState>>, body: &str) -> anyhow::Res
     let method = msg.get("method").and_then(|m| m.as_str()).unwrap_or("");
     let params = msg.get("params").cloned().unwrap_or(json!({}));
     let mut g = state.lock().await;
-    let result = match method {
-        "initialize" => json!({
-            "protocolVersion": "2025-03-26",
-            "capabilities": { "tools": {} },
-            "serverInfo": { "name": "daw-mcp-server", "version": "0.1.0" }
-        }),
-        "tools/list" => json!({ "tools": tools::list_tools() }),
-        "tools/call" => {
-            let name = params.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            let arguments = params.get("arguments").cloned().unwrap_or(json!({}));
-            tools::call(&mut g, name, arguments).await?
-        }
-        other => {
-            return Ok(
-                json!({"jsonrpc":"2.0","id":id,"error":{"code":-32601,"message":format!("unknown {other}")}}),
-            )
-        }
-    };
-    Ok(json!({"jsonrpc":"2.0","id":id,"result":result}))
+    match mcp::dispatch(&mut g, method, params).await {
+        Ok(result) => Ok(json!({"jsonrpc":"2.0","id":id,"result":result})),
+        Err(e) => Ok(json!({
+            "jsonrpc":"2.0",
+            "id":id,
+            "error":{"code":-32000,"message":e.to_string()}
+        })),
+    }
 }
 
 #[cfg(test)]

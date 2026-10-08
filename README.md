@@ -45,7 +45,21 @@ cp -R ~/Downloads/daw-plugin-macos-au/DAWAgent.component ~/Library/Audio/Plug-In
 xattr -cr ~/Library/Audio/Plug-Ins/Components/DAWAgent.component
 ```
 
-Quit Logic completely, reopen it, then **Plug-in Manager → Reset & Rescan Selection** (or Full Audio Unit Reset). Search for **DAW Agent** (manufacturer **DAW Plugin MCP**, type **Effect**). Insert it on an audio track **Audio FX** slot — it is `aufx`, not an instrument.
+Quit Logic completely, reopen it, then **Plug-in Manager → Reset & Rescan Selection** (or Full Audio Unit Reset). Plug-in Manager can show **DAW Agent** as compatible while the mixer **search box still finds nothing** — Logic’s insert search usually does not index third-party Audio Units.
+
+Insert it from the Audio FX slot: scroll to the bottom → **音訊單元 / Audio Units → DAW Plugin MCP → DAW Agent**. It is `aufx` (effect), not an instrument. Do not look under **音訊單元：Apple**.
+
+### Plugin GUI (AU / VST3 / CLAP)
+
+The editor is a custom chat console (not Logic’s generic parameter view). Start the daemon **before** opening the plugin window:
+
+```bash
+cargo run -p daw-mcp -- --host=logic
+```
+
+If the editor says **請啟動 daw-mcp**, the Unix socket (`$TMPDIR/daw-mcp.sock`) is not up. Chat uses API keys / OpenRouter / Ollama from the Settings panel (saved to `~/Library/Application Support/DAW-Plugin-MCP/plugin-ui.json`). Subscription users should add MCP in Claude Code / Cursor instead of pasting Pro/Max login into the plugin.
+
+After a new GitHub Actions build, replace the `.component` (AU) or `.vst3` and run `xattr -cr` again so Logic loads the GUI binary.
 
 ### Optional privacy / Gatekeeper
 

@@ -10,8 +10,12 @@ crate-type = ["cdylib", "lib"]
 
 [features]
 default = ["vst-clap"]
-vst-clap = ["dep:nih_plug"]
+vst-clap = ["dep:nih_plug", "dep:nih_plug_egui"]
 
 [dependencies]
 daw-contracts.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+parking_lot.workspace = true
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["vst3", "assert_process_allocs"], optional = true }
+nih_plug_egui = { git = "https://github.com/robbert-vdh/nih-plug.git", optional = true }

@@ -65,6 +65,20 @@ fi
 rm -rf "$OUT_DIR/$NAME.component"
 cp -R "$FOUND" "$OUT_DIR/$NAME.component"
 
+# clap-wrapper copies can land as -rw-r--r--; Logic then lists the AU in
+# Plug-in Manager but fails to instantiate it in the insert menu.
+chmod_macos_executables() {
+  local root="$1"
+  if [[ ! -e "$root" ]]; then
+    return 0
+  fi
+  find "$root" -type d -name MacOS | while read -r dir; do
+    find "$dir" -maxdepth 1 -type f -exec chmod +x {} +
+  done
+}
+chmod_macos_executables "$OUT_DIR/$NAME.component"
+chmod_macos_executables "$OUT_DIR/$NAME.clap"
+
 # Ad-hoc sign so hosts will load CI artifacts. Developer ID is optional and not used here.
 codesign --force --sign - --timestamp=none "$OUT_DIR/$NAME.component" || true
 if [[ -d "$OUT_DIR/$NAME.vst3" ]]; then
