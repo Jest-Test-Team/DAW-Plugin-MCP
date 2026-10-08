@@ -79,13 +79,17 @@ chmod_macos_executables() {
 chmod_macos_executables "$OUT_DIR/$NAME.component"
 chmod_macos_executables "$OUT_DIR/$NAME.clap"
 
-# Ad-hoc sign after chmod; --deep covers the embedded CLAP.
-codesign --force --sign - --timestamp=none --deep "$OUT_DIR/$NAME.component" || true
+# Sign inner CLAP then outer bundle. --deep can produce a component auval will not load.
+INNER_CLAP="$(find "$OUT_DIR/$NAME.component/Contents/PlugIns" -maxdepth 2 -name "*.clap" -print | head -n 1 || true)"
+if [[ -n "$INNER_CLAP" ]]; then
+  codesign --force --sign - --timestamp=none "$INNER_CLAP" || true
+fi
+codesign --force --sign - --timestamp=none "$OUT_DIR/$NAME.component" || true
 if [[ -d "$OUT_DIR/$NAME.vst3" ]]; then
-  codesign --force --sign - --timestamp=none --deep "$OUT_DIR/$NAME.vst3" || true
+  codesign --force --sign - --timestamp=none "$OUT_DIR/$NAME.vst3" || true
 fi
 if [[ -d "$OUT_DIR/$NAME.clap" || -f "$OUT_DIR/$NAME.clap" ]]; then
-  codesign --force --sign - --timestamp=none --deep "$OUT_DIR/$NAME.clap" || true
+  codesign --force --sign - --timestamp=none "$OUT_DIR/$NAME.clap" || true
 fi
 
 echo "AU wrapper at $OUT_DIR/$NAME.component"
