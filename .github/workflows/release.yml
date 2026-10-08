@@ -33,12 +33,6 @@ jobs:
           done
           (cd release-assets && sha256sum *.zip > SHA256SUMS.txt)
           ls -la release-assets
-      - name: Debug release context
-        run: |
-          # region agent log
-          echo "DEBUG_A99A1E {\"sessionId\":\"a99a1e\",\"runId\":\"release-post-fix\",\"hypothesisId\":\"A\",\"location\":\"release.yml\",\"message\":\"release trigger\",\"data\":{\"event\":\"${{ github.event_name }}\",\"ref\":\"${{ github.ref }}\",\"ref_type\":\"${{ github.ref_type }}\",\"sha\":\"${{ github.sha }}\",\"run\":\"${{ github.run_number }}\"},\"timestamp\":$(date +%s000)}"
-          ls -la release-assets || true
-          # endregion
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:

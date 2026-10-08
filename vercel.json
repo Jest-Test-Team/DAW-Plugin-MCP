@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "echo skip-python-install",
-  "buildCommand": "sh -c 'if [ -f web/vercel-build.sh ]; then sh web/vercel-build.sh; elif [ -f ../web/vercel-build.sh ]; then sh ../web/vercel-build.sh; else echo DEBUG_A99A1E missing-script cwd=$(pwd); ls -la; exit 1; fi'",
+  "buildCommand": "sh -c 'if [ -f web/vercel-build.sh ]; then sh web/vercel-build.sh; elif [ -f ../web/vercel-build.sh ]; then sh ../web/vercel-build.sh; else ls -la; exit 1; fi'",
   "outputDirectory": "public"
 }
