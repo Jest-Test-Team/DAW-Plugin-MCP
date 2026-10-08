@@ -33,17 +33,26 @@ jobs:
           done
           (cd release-assets && sha256sum *.zip > SHA256SUMS.txt)
           ls -la release-assets
+      - name: Debug release context
+        run: |
+          # region agent log
+          echo "DEBUG_A99A1E {\"sessionId\":\"a99a1e\",\"runId\":\"release-post-fix\",\"hypothesisId\":\"A\",\"location\":\"release.yml\",\"message\":\"release trigger\",\"data\":{\"event\":\"${{ github.event_name }}\",\"ref\":\"${{ github.ref }}\",\"ref_type\":\"${{ github.ref_type }}\",\"sha\":\"${{ github.sha }}\",\"run\":\"${{ github.run_number }}\"},\"timestamp\":$(date +%s000)}"
+          ls -la release-assets || true
+          # endregion
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v0.1.0-ci.{0}', github.run_number) }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || format('CI {0}', github.run_number) }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
+          prerelease: ${{ github.ref_type != 'tag' }}
+          make_latest: ${{ github.ref_type == 'tag' }}
           fail_on_unmatched_files: true
           files: |
             release-assets/*.zip
             release-assets/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
-        if: github.event_name == 'workflow_dispatch'
         with:
           name: release-assets
           path: release-assets/
