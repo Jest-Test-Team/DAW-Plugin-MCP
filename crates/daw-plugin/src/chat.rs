@@ -12,6 +12,19 @@ pub struct ChatMessage {
     pub text: String,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct HealthLine {
+    pub code: String,
+    pub message: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct CapSummary {
+    pub host: String,
+    pub degraded: bool,
+    pub reason: String,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ChatState {
     pub messages: Vec<ChatMessage>,
@@ -19,9 +32,12 @@ pub struct ChatState {
     pub busy: bool,
     pub daemon_ok: bool,
     pub status: String,
-    pub health: String,
-    pub session: String,
+    pub host: String,
+    pub degraded: bool,
+    pub degraded_reason: String,
+    pub health_lines: Vec<HealthLine>,
     pub pinged: bool,
+    pub displayed_peak: f32,
 }
 
 impl ChatState {
@@ -190,6 +206,64 @@ pub fn jsonrpc_request(id: u64, method: &str, params: Value) -> Value {
 
 pub const DAEMON_MISSING: &str = "請啟動 daw-mcp";
 
+pub fn is_user(role: &str) -> bool {
+    role.eq_ignore_ascii_case("user")
+}
+
+fn structured(v: &Value) -> &Value {
+    v.get("structuredContent").unwrap_or(v)
+}
+
+/// Pull up to three health issues from a `tools/call` result. No JSON dump.
+pub fn parse_health_issues(rpc_result: &Value) -> Vec<HealthLine> {
+    let sc = structured(rpc_result);
+    let Some(arr) = sc.as_array() else {
+        return Vec::new();
+    };
+    arr.iter()
+        .filter_map(|item| {
+            let code = item.get("code").and_then(|c| c.as_str())?;
+            let message = item.get("message").and_then(|m| m.as_str())?;
+            Some(HealthLine {
+                code: code.to_string(),
+                message: message.to_string(),
+            })
+        })
+        .take(3)
+        .collect()
+}
+
+pub fn parse_capability_summary(rpc_result: &Value) -> CapSummary {
+    let sc = structured(rpc_result);
+    let host = sc
+        .get("host")
+        .and_then(|h| h.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+    let mut degraded = false;
+    let mut reason = String::new();
+    if let Some(arr) = sc.get("capabilities").and_then(|c| c.as_array()) {
+        for cap in arr {
+            let support = cap.get("support").and_then(|s| s.as_str()).unwrap_or("");
+            if support == "degraded" || support == "unavailable" {
+                degraded = true;
+                if reason.is_empty() {
+                    reason = cap
+                        .get("reason")
+                        .and_then(|r| r.as_str())
+                        .unwrap_or("host capabilities limited")
+                        .to_string();
+                }
+            }
+        }
+    }
+    CapSummary {
+        host,
+        degraded,
+        reason,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,5 +324,51 @@ mod tests {
         let req = jsonrpc_request(1, "assistant/chat", p);
         assert_eq!(req["method"], "assistant/chat");
         assert_eq!(req["id"], 1);
+    }
+
+    #[test]
+    fn is_user_matches_role() {
+        assert!(is_user("user"));
+        assert!(is_user("User"));
+        assert!(!is_user("assistant"));
+    }
+
+    #[test]
+    fn parse_health_from_structured_content() {
+        let v = json!({
+            "content": [{"type":"text","text":"```json\n[]\n```"}],
+            "structuredContent": [
+                {"code":"clip","message":"track 1 clipping","severity":"warn"},
+                {"code":"masking","message":"overlap 250 Hz","severity":"warn"},
+                {"code":"unnamed","message":"untitled track","severity":"info"},
+                {"code":"extra","message":"should drop","severity":"info"}
+            ]
+        });
+        let lines = parse_health_issues(&v);
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].code, "clip");
+        assert!(!serde_json::to_string(&v).unwrap().is_empty());
+    }
+
+    #[test]
+    fn parse_capability_marks_degraded_logic() {
+        let v = json!({
+            "structuredContent": {
+                "host": "logic",
+                "layers": ["l2_surface"],
+                "capabilities": [
+                    {"tool":"daw_get_capabilities","support":"supported"},
+                    {
+                        "tool":"daw_set_parameter",
+                        "support":"unavailable",
+                        "reason":"Logic has no project plugin API"
+                    }
+                ]
+            }
+        });
+        let s = parse_capability_summary(&v);
+        assert_eq!(s.host, "logic");
+        assert!(s.degraded);
+        assert!(s.reason.contains("no project plugin API"));
     }
 }

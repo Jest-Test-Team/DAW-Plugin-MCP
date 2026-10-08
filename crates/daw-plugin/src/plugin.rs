@@ -4,6 +4,7 @@ use crate::{AudioRing, MidiEvent, MidiRing};
 use daw_contracts::HostId;
 use nih_plug::prelude::*;
 use nih_plug_egui::EguiState;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
 /// Identifies this insert as the L0 plugin sensor, not a DAW native bridge.
@@ -14,6 +15,8 @@ pub struct DawAgentPlugin {
     /// Shared with the message thread; audio callback only `push_*`.
     audio: Arc<AudioRing>,
     midi: Arc<MidiRing>,
+    /// Peak amplitude as f32 bits. GUI-only; written when the editor is open.
+    peak: Arc<AtomicU32>,
 }
 
 #[derive(Params)]
@@ -31,6 +34,7 @@ impl Default for DawAgentPlugin {
             params: Arc::new(DawAgentParams::default()),
             audio: Arc::new(AudioRing::with_capacity(1 << 16)),
             midi: Arc::new(MidiRing::with_capacity(1024)),
+            peak: Arc::new(AtomicU32::new(0)),
         }
     }
 }
@@ -38,7 +42,7 @@ impl Default for DawAgentPlugin {
 impl Default for DawAgentParams {
     fn default() -> Self {
         Self {
-            editor_state: EguiState::from_size(720, 520),
+            editor_state: EguiState::from_size(880, 560),
             output_gain: FloatParam::new("Output", 1.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
         }
     }
@@ -76,7 +80,11 @@ impl Plugin for DawAgentPlugin {
     }
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        crate::editor::create_editor(self.params.editor_state.clone(), self.params.clone())
+        crate::editor::create_editor(
+            self.params.editor_state.clone(),
+            self.params.clone(),
+            self.peak.clone(),
+        )
     }
 
     fn process(
@@ -119,6 +127,8 @@ impl Plugin for DawAgentPlugin {
             }
         }
 
+        let gui_open = self.params.editor_state.is_open();
+        let mut peak = 0.0f32;
         for channel_samples in buffer.iter_samples() {
             let gain = self.params.output_gain.smoothed.next();
             let mut tap: Option<f32> = None;
@@ -127,10 +137,19 @@ impl Plugin for DawAgentPlugin {
                     tap = Some(*sample);
                 }
                 *sample *= gain;
+                if gui_open {
+                    let a = sample.abs();
+                    if a > peak {
+                        peak = a;
+                    }
+                }
             }
             if let Some(s) = tap {
                 self.audio.push_audio(&[s]);
             }
+        }
+        if gui_open {
+            self.peak.store(peak.to_bits(), Ordering::Relaxed);
         }
 
         ProcessStatus::Normal
@@ -171,5 +190,6 @@ mod tests {
         let plugin = super::DawAgentPlugin::default();
         assert_eq!(plugin.audio.capacity(), 1 << 16);
         assert_eq!(plugin.params.output_gain.value(), 1.0);
+        assert_eq!(plugin.peak.load(std::sync::atomic::Ordering::Relaxed), 0);
     }
 }
