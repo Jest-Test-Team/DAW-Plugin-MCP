@@ -1,0 +1,14 @@
+target
+crates
+tests
+fuzz
+analysis
+bridges
+eval
+contracts
+.github
+.cargo
+.cursor
+*.rs
+Cargo.toml
+Cargo.lock

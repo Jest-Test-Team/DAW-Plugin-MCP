@@ -42,3 +42,13 @@ Workflow: [`.github/workflows/plugin.yml`](../.github/workflows/plugin.yml)
 - **macOS**: VST3 + CLAP via `cargo xtask bundle`, AU via clap-wrapper (`scripts/wrap_au.sh`, `aufx` with embedded CLAP), ad-hoc `codesign`
 - **Windows**: VST3 only (Audio Units do not exist on Windows)
 - Apple **Developer ID** signing is not configured; hosts may prompt on unsigned CI builds
+
+## GitHub Releases
+
+Workflow: [`.github/workflows/release.yml`](../.github/workflows/release.yml)
+
+Push a tag `v*` (or run the workflow manually). It reuses Plugin artifacts, zips VST3/AU/CLAP, writes `SHA256SUMS.txt`, and attaches them to the GitHub Release.
+
+## Vercel
+
+Production on Vercel is a static page in `public/` (`vercel.json` `outputDirectory`). The Python files in this repo are Robot/bridge helpers, not a Vercel function. Do not set a Python entrypoint.

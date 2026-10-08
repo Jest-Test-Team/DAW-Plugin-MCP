@@ -30,3 +30,7 @@ CI uploads GitHub Actions artifacts from [`.github/workflows/plugin.yml`](.githu
 - `daw-plugin-windows-vst3`
 
 AU is macOS-only; the Windows job does not build Audio Units. Ad-hoc codesign only — Developer ID is not in CI. See [docs/ci-security.md](docs/ci-security.md) for SAST / DAST / IAST.
+
+Tagged releases (`git tag v0.1.0 && git push origin v0.1.0`) run [`.github/workflows/release.yml`](.github/workflows/release.yml), zip the macOS/Windows bundles, and attach them to a GitHub Release.
+
+The Vercel production URL is a **static landing page** (`public/`). It does not run `daw-mcp` or Python.

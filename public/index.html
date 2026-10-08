@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DAW Agent MCP</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --fg: #111;
+        --muted: #555;
+        --bg: #f6f6f4;
+        --card: #fff;
+        --accent: #0b6;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: #eee;
+          --muted: #aaa;
+          --bg: #111;
+          --card: #1a1a1a;
+          --accent: #3d8;
+        }
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        line-height: 1.5;
+      }
+      main {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 3rem 1.25rem;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 1.5rem;
+      }
+      a {
+        color: var(--accent);
+      }
+      code {
+        font-size: 0.9em;
+      }
+      ul {
+        padding-left: 1.2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="card">
+        <h1>DAW Agent MCP</h1>
+        <p>
+          Local <strong>Rust MCP daemon</strong> plus a <strong>VST3 / CLAP / AU</strong> plugin
+          shell. This site is a landing page only — the daemon binds
+          <code>127.0.0.1</code> and is not hosted on Vercel.
+        </p>
+        <h2>Downloads</h2>
+        <p>
+          Plugin bundles ship from
+          <a href="https://github.com/Jest-Test-Team/DAW-Plugin-MCP/releases">GitHub Releases</a>
+          (tag <code>v*</code> runs the Release workflow). AU is macOS-only.
+        </p>
+        <h2>Run locally</h2>
+        <ul>
+          <li><code>cargo run -p daw-mcp -- --host=reaper</code></li>
+          <li>Connect Claude Code / Cursor / Codex as an MCP stdio server</li>
+        </ul>
+        <p>
+          Source:
+          <a href="https://github.com/Jest-Test-Team/DAW-Plugin-MCP">Jest-Test-Team/DAW-Plugin-MCP</a>
+        </p>
+      </div>
+    </main>
+  </body>
+</html>
