@@ -35,18 +35,40 @@ if [[ ! -e "$CLAP" ]]; then
   exit 1
 fi
 
-WRAP="$ROOT/target/clap-wrapper-src"
-BUILD="$ROOT/target/clap-wrapper-build"
-if [[ ! -d "$WRAP/.git" ]]; then
+# Do not store clap-wrapper under target/: Swatinem/rust-cache restores target/
+# and can leave an incomplete tree with .git but no CMakeLists.txt.
+WRAP="${CLAP_WRAPPER_SRC:-$ROOT/.cache/clap-wrapper-src}"
+BUILD="${CLAP_WRAPPER_BUILD:-$ROOT/.cache/clap-wrapper-build}"
+has_git=false
+has_cmake=false
+[[ -d "$WRAP/.git" ]] && has_git=true
+[[ -f "$WRAP/CMakeLists.txt" ]] && has_cmake=true
+cloned=false
+# region agent log
+dbg F "scripts/wrap_au.sh:pre-clone" "clap-wrapper source tree" \
+  "$(printf '{"wrap":"%s","has_git":%s,"has_cmake":%s}' "$WRAP" "$has_git" "$has_cmake")"
+# endregion
+if [[ "$has_cmake" != true ]]; then
+  rm -rf "$WRAP"
   git clone --depth 1 https://github.com/free-audio/clap-wrapper.git "$WRAP"
+  cloned=true
 fi
+if [[ ! -f "$WRAP/CMakeLists.txt" ]]; then
+  echo "clap-wrapper clone missing CMakeLists.txt at $WRAP" >&2
+  ls -la "$WRAP" >&2 || true
+  exit 1
+fi
+# region agent log
+dbg F "scripts/wrap_au.sh:post-clone" "clap-wrapper ready" \
+  "$(printf '{"cloned":%s,"cmake_lists":true}' "$cloned")"
+# endregion
 
 # Subdirectory usage (not clap-wrapper as top-level) so we only build AUv2
 # as an effect (`aufx`) and embed DAWAgent.clap inside the .component.
 # region agent log
 dbg A "scripts/wrap_au.sh:pre-cmake" "cmake configure inputs" \
-  "$(printf '{"cmake":"%s","cxx_std_flag":"17","generator_hint":"%s","clap":"%s"}' \
-    "$(command -v cmake || echo missing)" "${CMAKE_GENERATOR:-default}" "$CLAP")"
+  "$(printf '{"cmake":"%s","cxx_std_flag":"17","generator_hint":"%s","clap":"%s","wrap":"%s"}' \
+    "$(command -v cmake || echo missing)" "${CMAKE_GENERATOR:-default}" "$CLAP" "$WRAP")"
 # endregion
 
 cmake -S "$ROOT/scripts/wrap_au" -B "$BUILD" \

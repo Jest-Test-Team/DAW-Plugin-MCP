@@ -26,3 +26,4 @@ build/
 fuzz/target/
 fuzz/artifacts/
 fuzz/corpus/
+.cache/

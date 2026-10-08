@@ -3,6 +3,6 @@
   "private": true,
   "description": "Static landing page only. MCP daemon and VST/AU plugins are not deployed to Vercel.",
   "scripts": {
-    "build": "bash scripts/vercel-build.sh"
+    "build": "sh -c 'test -f public/index.html && echo static-ok'"
   }
 }

@@ -25,6 +25,8 @@ jobs:
         env:
           DEBUG_RUN_ID: post-fix
           DEBUG_LOG_PATH: ${{ github.workspace }}/.cursor/debug-a99a1e.log
+          CLAP_WRAPPER_SRC: ${{ runner.temp }}/clap-wrapper-src
+          CLAP_WRAPPER_BUILD: ${{ runner.temp }}/clap-wrapper-build
         run: bash scripts/wrap_au.sh
       - name: Ad-hoc sign VST3
         run: |

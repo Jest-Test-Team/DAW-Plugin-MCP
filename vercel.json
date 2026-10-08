@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "echo skip-python-install",
-  "buildCommand": "bash scripts/vercel-build.sh",
+  "buildCommand": "sh -c 'echo DEBUG_A99A1E cwd=$(pwd) scripts=$(ls scripts 2>/dev/null | tr \"\\n\" \" \") public=$(ls public 2>/dev/null | tr \"\\n\" \" \"); test -f public/index.html'",
   "outputDirectory": "public"
 }
