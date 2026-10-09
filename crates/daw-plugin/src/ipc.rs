@@ -7,10 +7,34 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 pub fn default_socket_path() -> PathBuf {
+    socket_candidates()
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| PathBuf::from("/tmp/daw-mcp.sock"))
+}
+
+/// Logic uses a different TMPDIR than Terminal. Try stable paths first.
+pub fn socket_candidates() -> Vec<PathBuf> {
     if cfg!(windows) {
-        PathBuf::from(r"\\.\pipe\daw-mcp")
-    } else {
-        std::env::temp_dir().join("daw-mcp.sock")
+        return vec![PathBuf::from(r"\\.\pipe\daw-mcp")];
+    }
+    let mut out = Vec::new();
+    if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
+        let home = PathBuf::from(home);
+        if cfg!(target_os = "macos") {
+            out.push(home.join("Library/Application Support/DAW-Plugin-MCP/daw-mcp.sock"));
+        } else {
+            out.push(home.join(".local/share/DAW-Plugin-MCP/daw-mcp.sock"));
+        }
+    }
+    push_unique(&mut out, PathBuf::from("/tmp/daw-mcp.sock"));
+    push_unique(&mut out, std::env::temp_dir().join("daw-mcp.sock"));
+    out
+}
+
+fn push_unique(out: &mut Vec<PathBuf>, path: PathBuf) {
+    if !out.contains(&path) {
+        out.push(path);
     }
 }
 
@@ -67,10 +91,20 @@ pub fn rpc_call(method: &str, params: Value) -> Result<Value, String> {
 fn connect() -> Result<Box<dyn ReadWrite>, std::io::Error> {
     #[cfg(unix)]
     {
-        let s = std::os::unix::net::UnixStream::connect(default_socket_path())?;
-        let _ = s.set_read_timeout(Some(Duration::from_secs(90)));
-        let _ = s.set_write_timeout(Some(Duration::from_secs(10)));
-        Ok(Box::new(s))
+        let mut last = None;
+        for path in socket_candidates() {
+            match std::os::unix::net::UnixStream::connect(&path) {
+                Ok(s) => {
+                    let _ = s.set_read_timeout(Some(Duration::from_secs(90)));
+                    let _ = s.set_write_timeout(Some(Duration::from_secs(10)));
+                    return Ok(Box::new(s));
+                }
+                Err(e) => last = Some(e),
+            }
+        }
+        Err(last.unwrap_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, DAEMON_MISSING)
+        }))
     }
     #[cfg(windows)]
     {

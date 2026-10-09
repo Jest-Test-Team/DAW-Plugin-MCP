@@ -65,6 +65,12 @@ fi
 rm -rf "$OUT_DIR/$NAME.component"
 cp -R "$FOUND" "$OUT_DIR/$NAME.component"
 
+# Embed sidecar before chmod/codesign so daw-mcp is inside the signed bundles.
+DAEMON="${ROOT}/target/release/daw-mcp"
+if [[ -x "$DAEMON" ]]; then
+  bash "$ROOT/scripts/embed_daemon.sh" "$DAEMON" "$OUT_DIR"
+fi
+
 # clap-wrapper copies can land as -rw-r--r--; Logic then lists the AU in
 # Plug-in Manager but fails to instantiate it in the insert menu.
 chmod_macos_executables() {

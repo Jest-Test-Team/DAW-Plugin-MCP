@@ -19,14 +19,8 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let args: Vec<String> = std::env::args().collect();
-    let host_name = args
-        .iter()
-        .find_map(|a| a.strip_prefix("--host=").map(str::to_string))
-        .or_else(|| std::env::var("DAW_HOST").ok())
-        .unwrap_or_else(|| "reaper".into());
-    let http_port = args
-        .iter()
-        .find_map(|a| a.strip_prefix("--http=").and_then(|p| p.parse().ok()));
+    let host_name = daw_mcp::parse_host_name(&args);
+    let mode = daw_mcp::parse_serve_mode(&args);
     let provider = providers::LlmProvider::from_env();
     if let Some(p) = &provider {
         tracing::info!(
@@ -38,15 +32,32 @@ async fn main() -> anyhow::Result<()> {
 
     let host = select_host(&host_name).context("select host")?;
     let state = Arc::new(Mutex::new(tools::ServerState::new(host)));
-    let ipc_state = Arc::clone(&state);
-    tokio::spawn(async move {
-        if let Err(e) = plugin_ipc::serve(ipc_state).await {
-            tracing::error!(error = %e, "plugin ipc");
+    for p in plugin_ipc::socket_candidates() {
+        eprintln!("plugin ipc: {}", p.display());
+    }
+
+    match mode {
+        daw_mcp::ServeMode::Sidecar => {
+            tracing::info!("sidecar: plugin ipc only (no stdio)");
+            plugin_ipc::serve(state).await
         }
-    });
-    if let Some(port) = http_port {
-        http::serve_loopback(state, port).await
-    } else {
-        mcp::serve_stdio(state).await
+        daw_mcp::ServeMode::Http(port) => {
+            let ipc_state = Arc::clone(&state);
+            tokio::spawn(async move {
+                if let Err(e) = plugin_ipc::serve(ipc_state).await {
+                    tracing::error!(error = %e, "plugin ipc");
+                }
+            });
+            http::serve_loopback(state, port).await
+        }
+        daw_mcp::ServeMode::Stdio => {
+            let ipc_state = Arc::clone(&state);
+            tokio::spawn(async move {
+                if let Err(e) = plugin_ipc::serve(ipc_state).await {
+                    tracing::error!(error = %e, "plugin ipc");
+                }
+            });
+            mcp::serve_stdio(state).await
+        }
     }
 }

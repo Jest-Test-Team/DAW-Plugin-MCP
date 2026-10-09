@@ -9,6 +9,7 @@ pub mod editor;
 pub mod ipc;
 #[cfg(feature = "vst-clap")]
 pub mod plugin;
+pub mod sidecar;
 
 #[cfg(feature = "vst-clap")]
 pub use plugin::DawAgentPlugin;

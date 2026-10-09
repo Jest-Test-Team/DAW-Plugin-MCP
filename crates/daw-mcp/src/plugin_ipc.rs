@@ -9,10 +9,33 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex;
 
 pub fn default_socket_path() -> PathBuf {
+    socket_candidates().into_iter().next().unwrap_or_else(|| {
+        PathBuf::from("/tmp/daw-mcp.sock")
+    })
+}
+
+/// Logic's TMPDIR is not the terminal's. Bind every candidate we can.
+pub fn socket_candidates() -> Vec<PathBuf> {
     if cfg!(windows) {
-        PathBuf::from(r"\\.\pipe\daw-mcp")
-    } else {
-        std::env::temp_dir().join("daw-mcp.sock")
+        return vec![PathBuf::from(r"\\.\pipe\daw-mcp")];
+    }
+    let mut out = Vec::new();
+    if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
+        let home = PathBuf::from(home);
+        if cfg!(target_os = "macos") {
+            out.push(home.join("Library/Application Support/DAW-Plugin-MCP/daw-mcp.sock"));
+        } else {
+            out.push(home.join(".local/share/DAW-Plugin-MCP/daw-mcp.sock"));
+        }
+    }
+    push_unique(&mut out, PathBuf::from("/tmp/daw-mcp.sock"));
+    push_unique(&mut out, std::env::temp_dir().join("daw-mcp.sock"));
+    out
+}
+
+fn push_unique(out: &mut Vec<PathBuf>, path: PathBuf) {
+    if !out.contains(&path) {
+        out.push(path);
     }
 }
 
@@ -51,10 +74,34 @@ pub async fn serve(state: Arc<Mutex<ServerState>>) -> anyhow::Result<()> {
 
 #[cfg(unix)]
 async fn serve_unix(state: Arc<Mutex<ServerState>>) -> anyhow::Result<()> {
+    let mut tasks = Vec::new();
+    for path in socket_candidates() {
+        let state = Arc::clone(&state);
+        tasks.push(tokio::spawn(async move { listen_unix(path, state).await }));
+    }
+    for t in tasks {
+        if let Ok(Err(e)) = t.await {
+            tracing::error!(error = %e, "plugin ipc listener");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+async fn listen_unix(path: PathBuf, state: Arc<Mutex<ServerState>>) -> anyhow::Result<()> {
     use tokio::net::UnixListener;
-    let path = default_socket_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
     let _ = std::fs::remove_file(&path);
-    let listener = UnixListener::bind(&path)?;
+    let listener = match UnixListener::bind(&path) {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("plugin ipc bind failed {}: {e}", path.display());
+            return Err(e.into());
+        }
+    };
+    eprintln!("plugin ipc listening {}", path.display());
     tracing::info!(path = %path.display(), "plugin ipc listening");
     loop {
         let (stream, _) = listener.accept().await?;
@@ -165,6 +212,7 @@ mod tests {
         let p = default_socket_path();
         let s = p.to_string_lossy();
         assert!(s.contains("daw-mcp"));
-        assert!(!s.contains("~/.claude"));
+        assert!(!s.contains(".claude"));
+        assert!(socket_candidates().len() >= 2);
     }
 }

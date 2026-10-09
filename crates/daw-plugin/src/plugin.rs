@@ -87,6 +87,7 @@ impl Plugin for DawAgentPlugin {
         )
     }
 
+    /// Audio callback: rings + gain + peak only. No sidecar spawn, FS, or network.
     fn process(
         &mut self,
         buffer: &mut Buffer,

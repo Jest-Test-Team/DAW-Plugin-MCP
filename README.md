@@ -56,19 +56,43 @@ Quit Logic completely, reopen it, then **Plug-in Manager → Reset & Rescan Sele
 
 Then on an audio track Audio FX slot open **Utility → DAW Agent**. Search `daw` works after this assignment. It is an effect (`aufx`), not an instrument.
 
+New artifacts start `daw-mcp` from inside the bundle. You do not need `cargo run`.
+
 ### Plugin GUI (AU / VST3 / CLAP)
 
-The editor is a custom chat console (not Logic’s generic parameter view). Start the daemon **before** opening the plugin window:
+The editor is a custom chat console (not Logic’s generic parameter view). Release bundles embed `daw-mcp` next to the plugin binary (`Contents/MacOS/daw-mcp`). Opening the editor starts that sidecar if the socket is down — **you do not need `cargo run`**. Host is remembered in `plugin-ui.json` (first launch defaults to **logic**). Closing the editor does not kill the sidecar.
 
-```bash
-cargo run -p daw-mcp -- --host=logic
-```
+If the editor says **請啟動 daw-mcp** or shows a missing-binary path, the sidecar was not in the bundle. Chat uses API keys / OpenRouter / Ollama from Settings (`~/Library/Application Support/DAW-Plugin-MCP/plugin-ui.json`, mode `0600`). Socket: `~/Library/Application Support/DAW-Plugin-MCP/daw-mcp.sock` (also `/tmp/daw-mcp.sock`).
 
-If the editor says **請啟動 daw-mcp**, the Unix socket (`$TMPDIR/daw-mcp.sock`) is not up. Chat uses API keys / OpenRouter / Ollama from the Settings panel (saved to `~/Library/Application Support/DAW-Plugin-MCP/plugin-ui.json`). Subscription users should add MCP in Claude Code / Cursor instead of pasting Pro/Max login into the plugin.
+Subscription users add MCP in Claude Code / Cursor / Codex (below). Do not paste Pro/Max login into the plugin. Forbidden: `claude -p`, reading `~/.claude`, Claude.ai login in the editor.
 
 After a new GitHub Actions build, replace the `.component` (AU) or `.vst3` and run `xattr -cr` again so Logic loads the GUI binary.
 
-### Optional privacy / Gatekeeper
+## Subscribe: Claude Code / Codex / Cursor MCP
+
+Official host talks to `daw-mcp` over **stdio**. Same binary as the sidecar (Release `daw-mcp`, or inside the AU):
+
+`DAWAgent.component/Contents/PlugIns/DAWAgent.clap/Contents/MacOS/daw-mcp`
+
+Claude Code:
+
+```bash
+claude mcp add daw-logic --transport stdio -- /path/to/daw-mcp --host=logic
+```
+
+Codex (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.daw-logic]
+command = "/path/to/daw-mcp"
+args = ["--host=logic"]
+```
+
+Cursor: Settings → MCP, stdio pointing at the same binary and `--host=logic`.
+
+Details: [docs/mcp-hosts.md](docs/mcp-hosts.md).
+
+## Optional privacy / Gatekeeper
 
 CI artifacts are **ad-hoc signed** (no Developer ID). After a GitHub download, macOS may quarantine the bundle.
 

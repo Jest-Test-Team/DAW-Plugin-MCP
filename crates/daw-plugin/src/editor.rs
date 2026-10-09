@@ -1,10 +1,11 @@
 //! Custom egui editor shared by CLAP / VST3 / wrapped AU. Message thread only.
 
 use crate::chat::{
-    chat_params, is_user, parse_capability_summary, parse_health_issues, ChatState, UiSettings,
-    DAEMON_MISSING,
+    chat_params, is_user, parse_capability_summary, parse_health_issues, take_draft, ChatState,
+    UiSettings, DAEMON_MISSING,
 };
 use crate::ipc;
+use crate::sidecar;
 use nih_plug::prelude::{Editor, ParamSetter};
 use nih_plug_egui::egui::{self, Color32, CornerRadius, Frame, Margin, Stroke, Vec2};
 use nih_plug_egui::{create_egui_editor, resizable_window::ResizableWindow, widgets, EguiState};
@@ -12,6 +13,7 @@ use parking_lot::Mutex;
 use serde_json::json;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 const COL_BG: Color32 = Color32::from_rgb(18, 18, 22);
 const COL_PANEL: Color32 = Color32::from_rgb(28, 28, 34);
@@ -59,6 +61,7 @@ pub fn create_editor(
 }
 
 fn apply_theme(ctx: &egui::Context) {
+    load_cjk_font(ctx);
     let mut v = egui::Visuals::dark();
     v.override_text_color = Some(COL_TEXT);
     v.window_fill = COL_BG;
@@ -71,6 +74,34 @@ fn apply_theme(ctx: &egui::Context) {
     v.widgets.inactive.bg_fill = COL_PANEL;
     v.selection.bg_fill = Color32::from_rgb(56, 92, 160);
     ctx.set_visuals(v);
+}
+
+fn load_cjk_font(ctx: &egui::Context) {
+    const CANDIDATES: &[&str] = &[
+        "/Library/Fonts/Arial Unicode.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/PingFang.ttc",
+    ];
+    for path in CANDIDATES {
+        let Ok(bytes) = std::fs::read(path) else {
+            continue;
+        };
+        let mut fonts = egui::FontDefinitions::default();
+        fonts.font_data.insert(
+            "cjk".into(),
+            std::sync::Arc::new(egui::FontData::from_owned(bytes)),
+        );
+        if let Some(fam) = fonts.families.get_mut(&egui::FontFamily::Proportional) {
+            fam.insert(0, "cjk".into());
+        }
+        if let Some(fam) = fonts.families.get_mut(&egui::FontFamily::Monospace) {
+            fam.push("cjk".into());
+        }
+        ctx.set_fonts(fonts);
+        break;
+    }
 }
 
 fn draw(
@@ -143,26 +174,35 @@ fn top_bar(ui: &mut egui::Ui, g: &GuiInner, ping: &mut bool, refresh: &mut bool)
     ui.horizontal(|ui| {
         ui.heading("DAW Agent");
         ui.add_space(8.0);
-        pill(
-            ui,
-            if g.chat.daemon_ok {
-                "daemon 已連線"
-            } else {
-                DAEMON_MISSING
-            },
-            if g.chat.daemon_ok { COL_OK } else { COL_BAD },
-        );
-        if !g.chat.host.is_empty() {
-            pill(ui, &g.chat.host, Color32::from_rgb(90, 110, 150));
+        if g.chat.starting {
+            pill(ui, "starting daw-mcp…", COL_WARN);
+        } else {
+            pill(
+                ui,
+                if g.chat.daemon_ok {
+                    "daemon 已連線"
+                } else {
+                    DAEMON_MISSING
+                },
+                if g.chat.daemon_ok { COL_OK } else { COL_BAD },
+            );
+        }
+        let host_label = if g.chat.host.is_empty() {
+            g.settings.host.as_str()
+        } else {
+            g.chat.host.as_str()
+        };
+        if !host_label.is_empty() {
+            pill(ui, host_label, Color32::from_rgb(90, 110, 150));
         }
         if g.chat.degraded {
             pill(ui, "degraded", COL_WARN);
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.button("重新整理").clicked() {
+            if ui.button("Refresh").clicked() {
                 *refresh = true;
             }
-            if ui.button("重新連線").clicked() {
+            if ui.button("Reconnect").clicked() {
                 *ping = true;
             }
         });
@@ -247,15 +287,33 @@ fn sidebar(
             ui.text_edit_singleline(&mut g.settings.model);
             ui.label("API key");
             ui.add(egui::TextEdit::singleline(&mut g.settings.api_key).password(true));
+            ui.label("Host");
+            ui.horizontal_wrapped(|ui| {
+                for h in [
+                    "logic",
+                    "reaper",
+                    "ableton",
+                    "bitwig",
+                    "studioone",
+                    "protools",
+                    "cubase",
+                    "flstudio",
+                ] {
+                    ui.selectable_value(&mut g.settings.host, h.to_string(), h);
+                }
+            });
             if ui.button("儲存設定").clicked() {
                 *save_settings = true;
             }
             ui.weak("金鑰只進本機設定。訂閱請用 Claude Code / Cursor 加 MCP。");
+            if let Some(hint) = g.settings.provider_hint() {
+                ui.colored_label(COL_WARN, hint);
+            }
         });
 }
 
 fn chat_pane(ui: &mut egui::Ui, g: &mut GuiInner, send_chat: &mut bool) {
-    let composer_h = 72.0;
+    let composer_h = 96.0;
     let hist_h = (ui.available_height() - composer_h).max(80.0);
 
     Frame::new()
@@ -267,14 +325,15 @@ fn chat_pane(ui: &mut egui::Ui, g: &mut GuiInner, send_chat: &mut bool) {
                 .max_height(hist_h)
                 .stick_to_bottom(true)
                 .show(ui, |ui| {
-                    if !g.chat.daemon_ok && g.chat.messages.is_empty() {
-                        ui.vertical_centered(|ui| {
-                            ui.add_space(40.0);
-                            ui.colored_label(COL_BAD, DAEMON_MISSING);
-                            ui.weak("cargo run -p daw-mcp -- --host=logic");
-                        });
-                    } else if g.chat.messages.is_empty() && !g.chat.busy {
-                        ui.weak("問 session / health…");
+                    if g.chat.messages.is_empty() && !g.chat.busy {
+                        if g.chat.starting {
+                            ui.weak("starting daw-mcp…");
+                        } else if !g.chat.daemon_ok {
+                            ui.vertical_centered(|ui| {
+                                ui.add_space(40.0);
+                                ui.colored_label(COL_BAD, &g.chat.status);
+                            });
+                        }
                     }
                     for m in &g.chat.messages {
                         bubble(ui, is_user(&m.role), &m.text);
@@ -289,10 +348,15 @@ fn chat_pane(ui: &mut egui::Ui, g: &mut GuiInner, send_chat: &mut bool) {
                 let enabled = !g.chat.busy && g.chat.daemon_ok;
                 let edit = egui::TextEdit::multiline(&mut g.chat.draft)
                     .desired_rows(2)
-                    .desired_width(ui.available_width() - 72.0)
+                    .desired_width(ui.available_width() - 88.0)
                     .hint_text("問 session / health…");
                 let resp = ui.add_enabled(enabled, edit);
-                let clicked = ui.add_enabled(enabled, egui::Button::new("送出")).clicked();
+                let clicked = ui
+                    .add_enabled(
+                        enabled,
+                        egui::Button::new("送出").min_size(Vec2::new(80.0, 48.0)),
+                    )
+                    .clicked();
                 let mut enter = false;
                 if enabled && resp.has_focus() {
                     ui.input_mut(|i| {
@@ -314,6 +378,9 @@ fn chat_pane(ui: &mut egui::Ui, g: &mut GuiInner, send_chat: &mut bool) {
                     *send_chat = true;
                 }
             });
+            if let Some(hint) = g.settings.provider_hint() {
+                ui.colored_label(COL_WARN, hint);
+            }
         });
 }
 
@@ -344,22 +411,58 @@ fn peak_norm(peak: f32) -> f32 {
     }
 }
 
+fn apply_hello(gui: &Arc<Mutex<GuiInner>>, v: &serde_json::Value) {
+    let host = v
+        .get("host")
+        .and_then(|h| h.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+    let mut g = gui.lock();
+    g.chat.daemon_ok = true;
+    g.chat.starting = false;
+    g.chat.host = host.clone();
+    g.chat.status = format!("daemon 已連線（host={host}）");
+}
+
 fn spawn_ping(gui: Arc<Mutex<GuiInner>>, ctx: egui::Context) {
+    let host = gui.lock().settings.host.clone();
     std::thread::spawn(move || {
         match ipc::rpc_call("plugin/hello", json!({})) {
             Ok(v) => {
-                let host = v
-                    .get("host")
-                    .and_then(|h| h.as_str())
-                    .unwrap_or("unknown")
-                    .to_string();
+                apply_hello(&gui, &v);
+                ctx.request_repaint();
+                return;
+            }
+            Err(_) => {
                 let mut g = gui.lock();
-                g.chat.daemon_ok = true;
-                g.chat.host = host.clone();
-                g.chat.status = format!("daemon 已連線（host={host}）");
+                g.chat.starting = true;
+                g.chat.daemon_ok = false;
+                g.chat.status = "starting daw-mcp…".into();
+            }
+        }
+        ctx.request_repaint();
+        match sidecar::spawn_if_needed(&host) {
+            Ok(_) => {
+                if sidecar::wait_until_up(Duration::from_secs(5)) {
+                    match ipc::rpc_call("plugin/hello", json!({})) {
+                        Ok(v) => apply_hello(&gui, &v),
+                        Err(e) => {
+                            let mut g = gui.lock();
+                            g.chat.starting = false;
+                            g.chat.daemon_ok = false;
+                            g.chat.status = e;
+                        }
+                    }
+                } else {
+                    let mut g = gui.lock();
+                    g.chat.starting = false;
+                    g.chat.daemon_ok = false;
+                    g.chat.status = "starting daw-mcp… 逾時".into();
+                }
             }
             Err(e) => {
                 let mut g = gui.lock();
+                g.chat.starting = false;
                 g.chat.daemon_ok = false;
                 g.chat.status = e;
             }
@@ -403,14 +506,25 @@ fn spawn_refresh(gui: Arc<Mutex<GuiInner>>, ctx: egui::Context) {
 fn spawn_chat(gui: Arc<Mutex<GuiInner>>, ctx: egui::Context) {
     let params = {
         let mut g = gui.lock();
-        let draft = g.chat.draft.trim().to_string();
-        if draft.is_empty() || g.chat.busy || !g.chat.daemon_ok {
+        let Some(draft) = take_draft(&g.chat.draft) else {
+            return;
+        };
+        if g.chat.busy || !g.chat.daemon_ok {
             return;
         }
         g.chat.draft.clear();
         g.chat.push_user(draft);
-        g.chat.busy = true;
-        chat_params(&g.chat.messages, &g.settings)
+        if let Some(hint) = g.settings.provider_hint() {
+            g.chat.push_assistant(hint.to_string());
+            None
+        } else {
+            g.chat.busy = true;
+            Some(chat_params(&g.chat.messages, &g.settings))
+        }
+    };
+    ctx.request_repaint();
+    let Some(params) = params else {
+        return;
     };
     std::thread::spawn(move || {
         let result = ipc::rpc_call("assistant/chat", params);
@@ -422,7 +536,11 @@ fn spawn_chat(gui: Arc<Mutex<GuiInner>>, ctx: egui::Context) {
                     .and_then(|t| t.as_str())
                     .unwrap_or("")
                     .to_string();
-                g.chat.push_assistant(text);
+                if text.is_empty() {
+                    g.chat.push_assistant("錯誤：空回應".into());
+                } else {
+                    g.chat.push_assistant(text);
+                }
             }
             Err(e) => g.chat.push_assistant(format!("錯誤：{e}")),
         }

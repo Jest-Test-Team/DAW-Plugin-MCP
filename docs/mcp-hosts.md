@@ -2,32 +2,54 @@
 
 Subscription mode: this repo is an **MCP server**. Talk to the official CLI; do not paste Claude Pro/Max OAuth into the plugin.
 
+Use a Release `daw-mcp`, a local `cargo build -p daw-mcp --release`, or the sidecar next to the plugin:
+
+- `DAWAgent.clap/Contents/MacOS/daw-mcp`
+- `DAWAgent.vst3/Contents/MacOS/daw-mcp`
+- AU: `DAWAgent.component/Contents/PlugIns/DAWAgent.clap/Contents/MacOS/daw-mcp`
+
+## Claude Code
+
 ```bash
-cargo build -p daw-mcp
-claude mcp add daw --transport stdio -- ./target/debug/daw-mcp --host=reaper
+claude mcp add daw-logic --transport stdio -- /path/to/daw-mcp --host=logic
 ```
 
 Ableton (this wave):
 
 ```bash
-claude mcp add daw-ableton --transport stdio -- ./target/debug/daw-mcp --host=ableton
+claude mcp add daw-ableton --transport stdio -- /path/to/daw-mcp --host=ableton
 ```
 
-Loopback HTTP (127.0.0.1 only):
+## Codex
+
+`~/.codex/config.toml`:
+
+```toml
+[mcp_servers.daw-logic]
+command = "/path/to/daw-mcp"
+args = ["--host=logic"]
+```
+
+## Cursor
+
+Settings → MCP → add a stdio server pointing at the same binary and `--host=logic` (or another host flag).
+
+## Loopback HTTP (optional)
 
 ```bash
-./target/debug/daw-mcp --host=reaper --http=8765
+/path/to/daw-mcp --host=logic --http=8765
 ```
+
+`--http=8765` still serves loopback HTTP; the plugin socket is always enabled unless you pass `--sidecar` (plugin IPC only, no stdio).
 
 ## Plugin chat / API mode
 
-The VST3 / AU / CLAP editor talks to `daw-mcp` over a length-prefixed Unix socket (`$TMPDIR/daw-mcp.sock`) or Windows named pipe `\\.\pipe\daw-mcp`. Start the daemon first:
+The VST3 / AU / CLAP editor talks to `daw-mcp` over a length-prefixed Unix socket:
 
-```bash
-cargo run -p daw-mcp -- --host=logic
-```
+- `~/Library/Application Support/DAW-Plugin-MCP/daw-mcp.sock`
+- `/tmp/daw-mcp.sock`
 
-`--http=8765` still serves loopback HTTP; the plugin socket is always enabled.
+The editor **spawns the bundled sidecar** (`daw-mcp --sidecar --host=<saved>`) if nothing is listening. First-time host defaults to **logic** and is remembered in `plugin-ui.json`. You do not need `cargo run`. An already-running daemon is reused (Claude / Codex stdio can share the same plugin socket). Closing the plugin does not kill the sidecar.
 
 Set **your** keys in the plugin Settings panel (or env):
 
@@ -48,4 +70,4 @@ Logic Pro: **音訊單元：Apple** is only Apple’s built-in AUs. File **DAW A
 
 ## Plugin artifacts
 
-Download VST3/AU from **Actions → Plugin artifacts**. Audio Units are macOS-only; Windows jobs publish VST3. The AU `.component` embeds `DAWAgent.clap`; keep the standalone CLAP from the same `daw-plugin-macos-au` artifact if you also want a CLAP host to load it.
+Download VST3/AU from **Actions → Plugin artifacts**. Audio Units are macOS-only; Windows jobs publish VST3. The AU `.component` embeds `DAWAgent.clap` (with `daw-mcp` in `Contents/MacOS`); keep the standalone CLAP from the same `daw-plugin-macos-au` artifact if you also want a CLAP host to load it.

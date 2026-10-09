@@ -21,6 +21,10 @@ jobs:
         run: command -v cmake || brew install cmake
       - name: Bundle VST3 and CLAP
         run: cargo xtask bundle daw-plugin --release
+      - name: Build sidecar daemon
+        run: cargo build -p daw-mcp --release
+      - name: Embed daemon into CLAP/VST3
+        run: bash scripts/embed_daemon.sh target/release/daw-mcp
       - name: Wrap AU and ad-hoc sign
         env:
           CLAP_WRAPPER_SRC: ${{ runner.temp }}/clap-wrapper-src
@@ -59,6 +63,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Bundle VST3
         run: cargo xtask bundle daw-plugin --release
+      - name: Build sidecar daemon
+        run: cargo build -p daw-mcp --release
+      - name: Embed daemon into VST3
+        shell: bash
+        run: |
+          if [[ -f target/release/daw-mcp.exe ]]; then
+            bash scripts/embed_daemon.sh target/release/daw-mcp.exe
+          else
+            bash scripts/embed_daemon.sh target/release/daw-mcp
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: daw-plugin-windows-vst3

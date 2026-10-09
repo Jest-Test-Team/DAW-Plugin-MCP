@@ -38,6 +38,7 @@ pub struct ChatState {
     pub health_lines: Vec<HealthLine>,
     pub pinged: bool,
     pub displayed_peak: f32,
+    pub starting: bool,
 }
 
 impl ChatState {
@@ -63,12 +64,18 @@ impl ChatState {
     }
 }
 
+fn default_host() -> String {
+    "logic".into()
+}
+
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UiSettings {
     pub kind: String,
     pub api_key: String,
     pub model: String,
     pub base_url: String,
+    #[serde(default = "default_host")]
+    pub host: String,
 }
 
 impl std::fmt::Debug for UiSettings {
@@ -78,6 +85,7 @@ impl std::fmt::Debug for UiSettings {
             .field("api_key", &redact(&self.api_key))
             .field("model", &self.model)
             .field("base_url", &self.base_url)
+            .field("host", &self.host)
             .finish()
     }
 }
@@ -97,6 +105,7 @@ impl Default for UiSettings {
             api_key: String::new(),
             model: "llama3.2".into(),
             base_url: "http://127.0.0.1:11434".into(),
+            host: default_host(),
         }
     }
 }
@@ -124,7 +133,11 @@ impl UiSettings {
         let Ok(raw) = fs::read_to_string(&path) else {
             return Self::default();
         };
-        serde_json::from_str(&raw).unwrap_or_default()
+        let mut s: Self = serde_json::from_str(&raw).unwrap_or_default();
+        if s.host.trim().is_empty() {
+            s.host = default_host();
+        }
+        s
     }
 
     pub fn save(&self) -> Result<(), String> {
@@ -174,6 +187,30 @@ impl UiSettings {
                 "model": nonempty(&self.model, "llama3.2")
             }),
         }
+    }
+
+    pub fn provider_ready(&self) -> bool {
+        match self.kind.as_str() {
+            "ollama" => true,
+            _ => !self.api_key.trim().is_empty(),
+        }
+    }
+
+    pub fn provider_hint(&self) -> Option<&'static str> {
+        if self.provider_ready() {
+            None
+        } else {
+            Some("填 API key，或改選 Ollama / 啟動 Ollama")
+        }
+    }
+}
+
+pub fn take_draft(draft: &str) -> Option<String> {
+    let t = draft.trim();
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
     }
 }
 
@@ -286,6 +323,7 @@ mod tests {
             api_key: "sk-secret-value".into(),
             model: "claude".into(),
             base_url: String::new(),
+            host: "logic".into(),
         };
         let d = format!("{s:?}");
         assert!(!d.contains("sk-secret-value"));
@@ -305,11 +343,13 @@ mod tests {
             api_key: "k".into(),
             model: "m".into(),
             base_url: "https://openrouter.ai/api/v1".into(),
+            host: "logic".into(),
         };
         s.save().unwrap();
         let loaded = UiSettings::load();
         assert_eq!(loaded.kind, "openrouter");
         assert_eq!(loaded.api_key, "k");
+        assert_eq!(loaded.host, "logic");
         let _ = fs::remove_file(&path);
         std::env::remove_var("DAW_PLUGIN_UI_CONFIG");
     }
@@ -370,5 +410,32 @@ mod tests {
         assert_eq!(s.host, "logic");
         assert!(s.degraded);
         assert!(s.reason.contains("no project plugin API"));
+    }
+
+    #[test]
+    fn default_host_is_logic() {
+        assert_eq!(UiSettings::default().host, "logic");
+        let s: UiSettings = serde_json::from_str(
+            r#"{"kind":"ollama","api_key":"","model":"llama3.2","base_url":""}"#,
+        )
+        .unwrap();
+        assert_eq!(s.host, "logic");
+    }
+
+    #[test]
+    fn take_draft_skips_empty() {
+        assert_eq!(take_draft("  "), None);
+        assert_eq!(take_draft("hello").as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn anthropic_without_key_is_not_ready() {
+        let anthropic = UiSettings {
+            kind: "anthropic_api".into(),
+            ..UiSettings::default()
+        };
+        assert!(!anthropic.provider_ready());
+        assert!(anthropic.provider_hint().is_some());
+        assert!(UiSettings::default().provider_ready());
     }
 }
