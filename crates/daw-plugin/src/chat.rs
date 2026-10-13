@@ -39,6 +39,8 @@ pub struct ChatState {
     pub pinged: bool,
     pub displayed_peak: f32,
     pub starting: bool,
+    pub mcp_bin: String,
+    pub copy_note: String,
 }
 
 impl ChatState {
@@ -212,6 +214,43 @@ pub fn take_draft(draft: &str) -> Option<String> {
     } else {
         Some(t.to_string())
     }
+}
+
+pub fn mcp_host(host: &str) -> &str {
+    let t = host.trim();
+    if t.is_empty() {
+        "logic"
+    } else {
+        t
+    }
+}
+
+/// Installed AU sidecar when `dladdr` has not resolved a bundle yet.
+pub fn fallback_sidecar_path() -> String {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "~".into());
+    format!(
+        "{home}/Library/Audio/Plug-Ins/Components/DAWAgent.component/Contents/PlugIns/DAWAgent.clap/Contents/MacOS/daw-mcp"
+    )
+}
+
+pub fn claude_mcp_add(bin: &str, host: &str) -> String {
+    let host = mcp_host(host);
+    let bin = if bin.trim().is_empty() {
+        fallback_sidecar_path()
+    } else {
+        bin.trim().to_string()
+    };
+    format!("claude mcp add daw-{host} --transport stdio -- {bin} --host={host}")
+}
+
+pub fn codex_mcp_toml(bin: &str, host: &str) -> String {
+    let host = mcp_host(host);
+    let bin = if bin.trim().is_empty() {
+        fallback_sidecar_path()
+    } else {
+        bin.trim().to_string()
+    };
+    format!("[mcp_servers.daw-{host}]\ncommand = \"{bin}\"\nargs = [\"--host={host}\"]\n")
 }
 
 fn nonempty<'a>(s: &'a str, fallback: &'a str) -> &'a str {
@@ -437,5 +476,21 @@ mod tests {
         assert!(!anthropic.provider_ready());
         assert!(anthropic.provider_hint().is_some());
         assert!(UiSettings::default().provider_ready());
+    }
+
+    #[test]
+    fn mcp_copy_strings_are_stdio_not_claude_p() {
+        let bin = "/tmp/DAWAgent.clap/Contents/MacOS/daw-mcp";
+        let cmd = claude_mcp_add(bin, "logic");
+        assert!(cmd.contains("daw-mcp"));
+        assert!(cmd.contains("--host=logic"));
+        assert!(cmd.contains("--transport stdio"));
+        assert!(!cmd.contains(".claude"));
+        assert!(!cmd.contains("claude -p"));
+        let toml = codex_mcp_toml(bin, "logic");
+        assert!(toml.contains("daw-mcp"));
+        assert!(toml.contains("--host=logic"));
+        assert!(!toml.contains(".claude"));
+        assert!(!toml.contains("claude -p"));
     }
 }

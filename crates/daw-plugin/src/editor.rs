@@ -1,8 +1,8 @@
 //! Custom egui editor shared by CLAP / VST3 / wrapped AU. Message thread only.
 
 use crate::chat::{
-    chat_params, is_user, parse_capability_summary, parse_health_issues, take_draft, ChatState,
-    UiSettings, DAEMON_MISSING,
+    claude_mcp_add, codex_mcp_toml, fallback_sidecar_path, parse_capability_summary,
+    parse_health_issues, ChatState, UiSettings, DAEMON_MISSING,
 };
 use crate::ipc;
 use crate::sidecar;
@@ -17,8 +17,6 @@ use std::time::Duration;
 
 const COL_BG: Color32 = Color32::from_rgb(18, 18, 22);
 const COL_PANEL: Color32 = Color32::from_rgb(28, 28, 34);
-const COL_USER: Color32 = Color32::from_rgb(42, 92, 168);
-const COL_ASSIST: Color32 = Color32::from_rgb(44, 44, 52);
 const COL_OK: Color32 = Color32::from_rgb(86, 196, 122);
 const COL_BAD: Color32 = Color32::from_rgb(214, 78, 78);
 const COL_WARN: Color32 = Color32::from_rgb(214, 164, 72);
@@ -32,9 +30,13 @@ pub struct GuiInner {
 
 impl Default for GuiInner {
     fn default() -> Self {
+        let mut chat = ChatState::new();
+        chat.mcp_bin = sidecar::find_daemon_binary()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|_| fallback_sidecar_path());
         Self {
             settings: UiSettings::load(),
-            chat: ChatState::new(),
+            chat,
         }
     }
 }
@@ -112,10 +114,11 @@ fn draw(
     params: &Arc<super::plugin::DawAgentParams>,
     peak: &Arc<AtomicU32>,
 ) {
-    let mut send_chat = false;
     let mut refresh = false;
     let mut save_settings = false;
     let mut ping = false;
+    let mut copy_claude = false;
+    let mut copy_codex = false;
 
     {
         let mut g = gui.lock();
@@ -147,7 +150,7 @@ fn draw(
             ui.allocate_ui_with_layout(
                 Vec2::new(ui.available_width(), height),
                 egui::Layout::top_down(egui::Align::Min).with_cross_justify(true),
-                |ui| chat_pane(ui, &mut g, &mut send_chat),
+                |ui| mcp_pane(ui, &mut g, &mut copy_claude, &mut copy_codex),
             );
         });
     }
@@ -165,8 +168,19 @@ fn draw(
     if refresh {
         spawn_refresh(gui.clone(), ctx.clone());
     }
-    if send_chat {
-        spawn_chat(gui.clone(), ctx.clone());
+    if copy_claude || copy_codex {
+        let (bin, host) = {
+            let g = gui.lock();
+            (g.chat.mcp_bin.clone(), g.settings.host.clone())
+        };
+        if copy_claude {
+            ctx.copy_text(claude_mcp_add(&bin, &host));
+            gui.lock().chat.copy_note = "已複製 Claude Code 指令".into();
+        }
+        if copy_codex {
+            ctx.copy_text(codex_mcp_toml(&bin, &host));
+            gui.lock().chat.copy_note = "已複製 Codex config".into();
+        }
     }
 }
 
@@ -274,20 +288,7 @@ fn sidebar(
             }
 
             ui.add_space(8.0);
-            ui.strong("設定");
-            ui.horizontal_wrapped(|ui| {
-                ui.selectable_value(&mut g.settings.kind, "ollama".into(), "Ollama");
-                ui.selectable_value(&mut g.settings.kind, "anthropic_api".into(), "Anthropic");
-                ui.selectable_value(&mut g.settings.kind, "openai_compat".into(), "OpenAI");
-                ui.selectable_value(&mut g.settings.kind, "openrouter".into(), "OpenRouter");
-            });
-            ui.label("Base URL");
-            ui.text_edit_singleline(&mut g.settings.base_url);
-            ui.label("Model");
-            ui.text_edit_singleline(&mut g.settings.model);
-            ui.label("API key");
-            ui.add(egui::TextEdit::singleline(&mut g.settings.api_key).password(true));
-            ui.label("Host");
+            ui.strong("Host");
             ui.horizontal_wrapped(|ui| {
                 for h in [
                     "logic",
@@ -302,105 +303,67 @@ fn sidebar(
                     ui.selectable_value(&mut g.settings.host, h.to_string(), h);
                 }
             });
-            if ui.button("儲存設定").clicked() {
+            if ui.button("儲存 Host").clicked() {
                 *save_settings = true;
             }
-            ui.weak("金鑰只進本機設定。訂閱請用 Claude Code / Cursor 加 MCP。");
-            if let Some(hint) = g.settings.provider_hint() {
-                ui.colored_label(COL_WARN, hint);
-            }
+            ui.weak("對話在 Claude Code / Codex，不在此外掛。");
         });
 }
 
-fn chat_pane(ui: &mut egui::Ui, g: &mut GuiInner, send_chat: &mut bool) {
-    let composer_h = 96.0;
-    let hist_h = (ui.available_height() - composer_h).max(80.0);
-
+fn mcp_pane(ui: &mut egui::Ui, g: &mut GuiInner, copy_claude: &mut bool, copy_codex: &mut bool) {
     Frame::new()
         .fill(COL_BG)
         .corner_radius(CornerRadius::same(8))
-        .inner_margin(Margin::same(8))
+        .inner_margin(Margin::same(12))
         .show(ui, |ui| {
-            egui::ScrollArea::vertical()
-                .max_height(hist_h)
-                .stick_to_bottom(true)
-                .show(ui, |ui| {
-                    if g.chat.messages.is_empty() && !g.chat.busy {
-                        if g.chat.starting {
-                            ui.weak("starting daw-mcp…");
-                        } else if !g.chat.daemon_ok {
-                            ui.vertical_centered(|ui| {
-                                ui.add_space(40.0);
-                                ui.colored_label(COL_BAD, &g.chat.status);
-                            });
-                        }
-                    }
-                    for m in &g.chat.messages {
-                        bubble(ui, is_user(&m.role), &m.text);
-                    }
-                    if g.chat.busy {
-                        bubble(ui, false, "…");
-                    }
-                });
-
+            ui.heading("訂閱 MCP");
             ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                let enabled = !g.chat.busy && g.chat.daemon_ok;
-                let edit = egui::TextEdit::multiline(&mut g.chat.draft)
-                    .desired_rows(2)
-                    .desired_width(ui.available_width() - 88.0)
-                    .hint_text("問 session / health…");
-                let resp = ui.add_enabled(enabled, edit);
-                let clicked = ui
-                    .add_enabled(
-                        enabled,
-                        egui::Button::new("送出").min_size(Vec2::new(80.0, 48.0)),
-                    )
-                    .clicked();
-                let mut enter = false;
-                if enabled && resp.has_focus() {
-                    ui.input_mut(|i| {
-                        i.events.retain(|ev| match ev {
-                            egui::Event::Key {
-                                key: egui::Key::Enter,
-                                pressed: true,
-                                modifiers,
-                                ..
-                            } if !modifiers.shift => {
-                                enter = true;
-                                false
-                            }
-                            _ => true,
-                        });
-                    });
-                }
-                if clicked || enter {
-                    *send_chat = true;
-                }
-            });
-            if let Some(hint) = g.settings.provider_hint() {
-                ui.colored_label(COL_WARN, hint);
+            ui.label("在 Claude Code、Codex 或 Cursor 說話。此外掛不收 API key，也不讀訂閱 token。");
+            ui.add_space(10.0);
+            ui.strong("sidecar");
+            ui.monospace(&g.chat.mcp_bin);
+            if g.chat.starting {
+                ui.colored_label(COL_WARN, "starting daw-mcp…");
+            } else if !g.chat.daemon_ok {
+                ui.colored_label(COL_BAD, &g.chat.status);
+            }
+            ui.add_space(10.0);
+            if ui
+                .add_sized(Vec2::new(ui.available_width(), 36.0), egui::Button::new("複製 Claude Code 指令"))
+                .clicked()
+            {
+                *copy_claude = true;
+            }
+            ui.add_space(6.0);
+            if ui
+                .add_sized(Vec2::new(ui.available_width(), 36.0), egui::Button::new("複製 Codex config"))
+                .clicked()
+            {
+                *copy_codex = true;
+            }
+            if !g.chat.copy_note.is_empty() {
+                ui.add_space(6.0);
+                ui.colored_label(COL_OK, &g.chat.copy_note);
+            }
+            ui.add_space(12.0);
+            ui.weak("Cursor：Settings → MCP，stdio 指向同一 binary 與 --host。");
+            ui.add_space(8.0);
+            if g.chat.degraded {
+                ui.colored_label(
+                    COL_WARN,
+                    if g.chat.degraded_reason.is_empty() {
+                        "Logic 深層控制 degraded（無 project plugin API）。分析 / health 仍可用。".into()
+                    } else {
+                        format!(
+                            "{} 下一步：Probe 或換 REAPER / Ableton。",
+                            g.chat.degraded_reason
+                        )
+                    },
+                );
+            } else {
+                ui.weak("Logic 深層控制為 degraded（無 project plugin API）。下一步：Probe 或換 REAPER / Ableton。");
             }
         });
-}
-
-fn bubble(ui: &mut egui::Ui, user: bool, text: &str) {
-    ui.horizontal(|ui| {
-        if user {
-            let spacer = (ui.available_width() * 0.18).max(12.0);
-            ui.add_space(spacer);
-        }
-        let fill = if user { COL_USER } else { COL_ASSIST };
-        Frame::new()
-            .fill(fill)
-            .corner_radius(CornerRadius::same(10))
-            .inner_margin(Margin::symmetric(10, 8))
-            .show(ui, |ui| {
-                ui.set_max_width(ui.available_width() * 0.92);
-                ui.label(text);
-            });
-    });
-    ui.add_space(4.0);
 }
 
 fn peak_norm(peak: f32) -> f32 {
@@ -442,7 +405,11 @@ fn spawn_ping(gui: Arc<Mutex<GuiInner>>, ctx: egui::Context) {
         }
         ctx.request_repaint();
         match sidecar::spawn_if_needed(&host) {
-            Ok(_) => {
+            Ok(bin) => {
+                {
+                    let mut g = gui.lock();
+                    g.chat.mcp_bin = bin.display().to_string();
+                }
                 if sidecar::wait_until_up(Duration::from_secs(5)) {
                     match ipc::rpc_call("plugin/hello", json!({})) {
                         Ok(v) => apply_hello(&gui, &v),
@@ -499,52 +466,6 @@ fn spawn_refresh(gui: Arc<Mutex<GuiInner>>, ctx: egui::Context) {
             g.chat.degraded = cap.degraded;
             g.chat.degraded_reason = cap.reason;
         }
-        ctx.request_repaint();
-    });
-}
-
-fn spawn_chat(gui: Arc<Mutex<GuiInner>>, ctx: egui::Context) {
-    let params = {
-        let mut g = gui.lock();
-        let Some(draft) = take_draft(&g.chat.draft) else {
-            return;
-        };
-        if g.chat.busy || !g.chat.daemon_ok {
-            return;
-        }
-        g.chat.draft.clear();
-        g.chat.push_user(draft);
-        if let Some(hint) = g.settings.provider_hint() {
-            g.chat.push_assistant(hint.to_string());
-            None
-        } else {
-            g.chat.busy = true;
-            Some(chat_params(&g.chat.messages, &g.settings))
-        }
-    };
-    ctx.request_repaint();
-    let Some(params) = params else {
-        return;
-    };
-    std::thread::spawn(move || {
-        let result = ipc::rpc_call("assistant/chat", params);
-        let mut g = gui.lock();
-        match result {
-            Ok(v) => {
-                let text = v
-                    .get("text")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                if text.is_empty() {
-                    g.chat.push_assistant("錯誤：空回應".into());
-                } else {
-                    g.chat.push_assistant(text);
-                }
-            }
-            Err(e) => g.chat.push_assistant(format!("錯誤：{e}")),
-        }
-        g.chat.busy = false;
         ctx.request_repaint();
     });
 }
